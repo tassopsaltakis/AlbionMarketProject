@@ -29,6 +29,7 @@ import {
   fameRate,
   RESOURCES,
   type PlayerSnapshot,
+  type FameMetric,
 } from '@/lib/players/analytics';
 import {
   type PublicIdentity,
@@ -98,9 +99,7 @@ export function PlayerExplorer({
     [resource, setResource] = useState('All'),
     [rosterQuery, setRosterQuery] = useState(''),
     [sort, setSort] = useState('Gathering'),
-    [rateMetric, setRateMetric] = useState<
-      'gathering' | 'crafting' | 'farming' | 'fishing'
-    >('gathering');
+    [rateMetric, setRateMetric] = useState<FameMetric>('gathering');
   const generation = useRef(0);
   const [trackingWindow, setTrackingWindow] = useState('All saved');
   useEffect(() => {
@@ -115,6 +114,11 @@ export function PlayerExplorer({
     setError('');
     setBusy(false);
     setSnapshots([]);
+    return () => {
+      // Invalidate the latest request generation when leaving this region or view.
+      // oxlint-disable-next-line react-hooks/exhaustive-deps
+      generation.current++;
+    };
   }, [settings.region]);
   function persist(list: Recruit[]) {
     setRecruits(list);
@@ -279,6 +283,69 @@ export function PlayerExplorer({
                 -1),
     );
   const saved = recruits.filter((r) => r.region === settings.region);
+  async function refreshShortlist() {
+    const ticket = ++generation.current;
+    setBusy(true);
+    setError('');
+    const updates = new Map<string, PlayerEnvelope<PublicIdentity>>();
+    let failures = 0;
+    for (const recruit of saved.slice(0, 50)) {
+      if (ticket !== generation.current) return;
+      try {
+        const result = await playerRequest<PublicIdentity>(
+          new URLSearchParams({
+            server: settings.region,
+            kind: 'player',
+            id: recruit.player.Id,
+          }),
+          settings.playerProxy,
+        );
+        if (ticket !== generation.current) return;
+        updates.set(recruit.player.Id, result);
+        if (result.error) failures++;
+        const point = snapshot(
+          result.data,
+          settings.region,
+          result.source,
+          result.fetchedAt,
+        );
+        if (point) {
+          const key = `amp:player-history:${settings.region}:${recruit.player.Id}`;
+          writeLocal(
+            key,
+            retainSnapshot(readLocal<PlayerSnapshot[]>(key, []), point),
+          );
+        }
+      } catch {
+        failures++;
+      }
+    }
+    if (ticket !== generation.current) return;
+    persist(
+      readLocal<Recruit[]>('amp:recruits', []).map((recruit) => {
+        const update =
+          recruit.region === settings.region
+            ? updates.get(recruit.player.Id)
+            : undefined;
+        return update
+          ? {
+              ...recruit,
+              player: update.data,
+              source: update.source,
+              observedAt: update.fetchedAt,
+            }
+          : recruit;
+      }),
+    );
+    setBusy(false);
+    if (failures)
+      setError(
+        `${failures} profiles could not be refreshed fully. Previous records were retained.`,
+      );
+    notify(
+      `Refreshed ${updates.size} saved profiles. Unchanged source updates do not create new fame samples.`,
+    );
+  }
   return (
     <>
       <Panel
@@ -622,6 +689,7 @@ export function PlayerExplorer({
                           'farming',
                           'crafting',
                           'fishing',
+                          ...RESOURCES,
                         ]}
                       />
                     </>
@@ -653,6 +721,7 @@ export function PlayerExplorer({
                         <AreaChart
                           data={visibleSnapshots.map((s) => ({
                             ...s,
+                            ...s.resources,
                             time: timestamp(s.updatedAt),
                           }))}
                         >
@@ -847,20 +916,29 @@ export function PlayerExplorer({
           title="Recruiting shortlist"
           tag="PRIVATE TO THIS BROWSER"
           actions={
-            <ExportButton
-              name="recruiting-shortlist"
-              rows={saved.map((r) => ({
-                id: r.player.Id,
-                name: r.player.Name,
-                region: r.region,
-                guild: r.player.GuildName,
-                gathering_fame: playerStats(r.player).gathering,
-                farming_fame: playerStats(r.player).farming,
-                stats_updated: playerStats(r.player).updatedAt,
-                note: r.note,
-                source: r.source,
-              }))}
-            />
+            <>
+              <button
+                disabled={busy || !saved.length}
+                onClick={() => void refreshShortlist()}
+              >
+                <RefreshCw size={14} /> Refresh {Math.min(saved.length, 50)}{' '}
+                profiles
+              </button>
+              <ExportButton
+                name="recruiting-shortlist"
+                rows={saved.map((r) => ({
+                  id: r.player.Id,
+                  name: r.player.Name,
+                  region: r.region,
+                  guild: r.player.GuildName,
+                  gathering_fame: playerStats(r.player).gathering,
+                  farming_fame: playerStats(r.player).farming,
+                  stats_updated: playerStats(r.player).updatedAt,
+                  note: r.note,
+                  source: r.source,
+                }))}
+              />
+            </>
           }
         >
           <MarketTable

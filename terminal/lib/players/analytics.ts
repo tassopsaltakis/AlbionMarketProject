@@ -81,12 +81,22 @@ export function retainSnapshot(
     .sort((a, b) => timestamp(a.updatedAt) - timestamp(b.updatedAt))
     .slice(-96);
 }
-export function fameRate(
-  snapshots: PlayerSnapshot[],
-  metric: 'gathering' | 'crafting' | 'farming' | 'fishing',
-) {
+export type FameMetric =
+  | 'gathering'
+  | 'crafting'
+  | 'farming'
+  | 'fishing'
+  | (typeof RESOURCES)[number];
+export function fameRate(snapshots: PlayerSnapshot[], metric: FameMetric) {
+  const value = (point: PlayerSnapshot): number | null =>
+    metric === 'gathering' ||
+    metric === 'crafting' ||
+    metric === 'farming' ||
+    metric === 'fishing'
+      ? point[metric]
+      : (point.resources[metric] ?? null);
   const points = snapshots
-    .filter((s) => s[metric] != null && Number.isFinite(timestamp(s.updatedAt)))
+    .filter((s) => value(s) != null && Number.isFinite(timestamp(s.updatedAt)))
     .sort((a, b) => timestamp(a.updatedAt) - timestamp(b.updatedAt));
   const first = points[0],
     last = points.at(-1);
@@ -100,7 +110,13 @@ export function fameRate(
     return null;
   const hours =
     (timestamp(last.updatedAt) - timestamp(first.updatedAt)) / 3600000;
-  const gain = last[metric]! - first[metric]!;
+  if (
+    points.some(
+      (point, index) => index > 0 && value(point)! < value(points[index - 1])!,
+    )
+  )
+    return null;
+  const gain = value(last)! - value(first)!;
   if (hours < 1 || gain < 0) return null;
   return {
     gain,

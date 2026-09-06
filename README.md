@@ -22,6 +22,7 @@ Open http://localhost:3000. The local server proxies public market and player re
 - Estimate gathering, transport, and production economics using editable assumptions. Select from 2,878 cataloged direct material recipes, including 130 refining routes, or import a sourced recipe. Set expected prices and bank inventory, then export the initial-batch shopping list.
 - Save watchlists, price alerts, screens, and recruiting notes in your browser; export tables as CSV.
 - Use separate Players and Guilds tabs to inspect resource-specific gathering fame, farming and crafting fame, and filter guild rosters for recruiting.
+- Refresh up to 50 shortlisted profiles in sequence while retaining local notes. Compare observed fame rates for each gathering resource; counter decreases invalidate a rate instead of producing a misleading gain.
 
 ## Data and interpretation
 

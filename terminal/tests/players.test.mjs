@@ -88,6 +88,22 @@ test('source-less profiles cannot be given fabricated timestamps', () => {
     null,
   );
 });
+test('resource rates preserve missing values and reject intervening counter resets', () => {
+  const first = snapshot(player, 'americas', 'fixture', '2026-09-05T01:00:00Z');
+  const middle = {
+    ...first,
+    updatedAt: '2026-09-05T12:00:00Z',
+    resources: { Ore: 40 },
+  };
+  const last = {
+    ...first,
+    updatedAt: '2026-09-06T00:00:00Z',
+    resources: { Ore: 300 },
+  };
+  assert.equal(fameRate([first, last], 'Ore').perHour, 10);
+  assert.equal(fameRate([first, last], 'Wood'), null);
+  assert.equal(fameRate([first, middle, last], 'Ore'), null);
+});
 test('player routes validate IDs and keep regions separate', () => {
   assert.match(
     playerURL(
