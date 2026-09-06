@@ -140,13 +140,17 @@ export function FreshnessBadge({
   return (
     <span
       className={`freshness ${f.toLowerCase().replaceAll(' ', '-')}`}
+      aria-label={
+        f === 'NO DATA'
+          ? 'No market observation'
+          : `Observed ${ageLabel(date, now)} ago; ${f.toLowerCase()}`
+      }
       title={`${date || 'No timestamp'} UTC · Price last observed ${ageLabel(date, now)} ago · Albion Online Data Project`}
     >
       <i />
-      {compact ? ageLabel(date, now) : f}
-      <span className="badge-age">
-        {!compact && f !== 'NO DATA' ? ' ' + ageLabel(date, now) : ''}
-      </span>
+      {f === 'NO DATA'
+        ? 'No data'
+        : ageLabel(date, now) + (compact ? '' : ' ago')}
     </span>
   );
 }

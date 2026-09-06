@@ -87,6 +87,7 @@ import { runtime } from '@/lib/market/runtime';
 import { materialFamily, materialUniverse } from '@/lib/market/materials';
 import { MaterialOverview } from './material-overview';
 import { PlayerExplorer } from './player-explorer';
+import { QuoteCoverage } from './quote-coverage';
 import { age, arbitrage, valid } from '@/lib/market/analytics';
 import {
   SelectBox,
@@ -620,6 +621,19 @@ export default function Terminal() {
                   </button>
                 ))}
               </div>
+              <QuoteCoverage
+                quotes={quotes.filter(
+                  (q) =>
+                    q.item_id === selected &&
+                    q.quality ===
+                      (materialFamily(selected) ? 1 : settings.quality),
+                )}
+                city={settings.city}
+                now={now}
+                checkedAt={last}
+                busy={busy}
+                onCity={(city) => setSettings({ ...settings, city })}
+              />
               <div className="finance-grid">
                 <PriceChart
                   key={selected + settings.region + view}
@@ -702,7 +716,9 @@ export default function Terminal() {
                           </div>
                           <div>
                             <span>Quality</span>
-                            <span>{settings.quality}</span>
+                            <span>
+                              {materialFamily(selected) ? 1 : settings.quality}
+                            </span>
                           </div>
                         </>
                       );

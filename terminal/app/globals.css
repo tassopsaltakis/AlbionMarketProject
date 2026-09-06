@@ -1573,3 +1573,13 @@ kbd {
   color: var(--muted-foreground);
 }
 .data-sources a:hover { color: var(--foreground); text-decoration: underline; }
+.quote-coverage { margin: 12px 0; padding: 14px 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.coverage-summary { display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: center; }
+.coverage-summary > div { display: grid; gap: 5px; flex: 1 1 190px; }
+.coverage-summary strong { font-size: 13px; font-weight: 600; }
+.coverage-summary small, .quote-coverage details { color: var(--muted-foreground); font-size: 11px; }
+.coverage-summary .eyebrow { font-size: 9px; letter-spacing: .08em; color: var(--muted-foreground); }
+.quote-coverage details { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+.quote-coverage summary { cursor: pointer; }
+.quote-coverage p { line-height: 1.7; max-width: 900px; margin-top: 8px; }
+.quote-coverage a { text-decoration: underline; }
