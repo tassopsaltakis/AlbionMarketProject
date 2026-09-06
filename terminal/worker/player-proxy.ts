@@ -2,6 +2,31 @@ import { playerURL, validatePlayerData } from '../lib/players/source.ts';
 interface Environment {
   ALLOWED_ORIGINS?: string;
 }
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+async function readPublicJSON(response: Response) {
+  if (Number(response.headers.get('Content-Length')) > MAX_RESPONSE_BYTES)
+    throw new Error('Player source response exceeds the supported size');
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Player source returned an empty response');
+  let bytes = 0;
+  let text = '';
+  const decoder = new TextDecoder();
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new Error('Player source response exceeds the supported size');
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    return JSON.parse(text + decoder.decode()) as unknown;
+  } finally {
+    reader.releaseLock();
+  }
+}
 const counts = new Map<string, { start: number; count: number }>();
 const upstreamCache = new Map<
   string,
@@ -72,11 +97,12 @@ const worker = {
     try {
       const response = await fetch(source, {
         headers: { Accept: 'application/json' },
+        redirect: 'error',
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) throw new Error('Source HTTP ' + response.status);
       const result = {
-        data: await response.json(),
+        data: await readPublicJSON(response),
         source,
         fetchedAt: new Date().toISOString(),
         cached: false,
@@ -86,7 +112,7 @@ const worker = {
         new URL(request.url).searchParams.get('kind') || 'search',
       );
       upstreamCache.set(source, result);
-      if (upstreamCache.size > 100)
+      if (upstreamCache.size > 10)
         upstreamCache.delete(upstreamCache.keys().next().value!);
       return Response.json(result, { headers: cors });
     } catch (e) {

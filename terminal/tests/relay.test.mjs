@@ -4,6 +4,25 @@ import worker from '../worker/player-proxy.ts';
 
 const origin = 'https://tassopsaltakis.github.io';
 const env = { ALLOWED_ORIGINS: origin };
+test('relay rejects oversized upstream data before caching it', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.redirect, 'error');
+    return new Response('{}', {
+      headers: { 'Content-Length': String(3 * 1024 * 1024) },
+    });
+  };
+  try {
+    const request = new Request(
+      'https://relay.example/?server=americas&kind=search&q=oversizedfixture',
+    );
+    const response = await worker.fetch(request, env);
+    assert.equal(response.status, 502);
+    assert.match((await response.json()).error, /supported size/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
 test('relay rejects unapproved origins, methods, and invalid upstream queries', async () => {
   const request = (query, options = {}) =>
     new Request('https://relay.example/?' + query, options);

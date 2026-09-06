@@ -15,3 +15,6 @@ browser. Never put secrets in build variables, client code, or recipe imports.
 Dependency advisories are checked during maintenance. Report data-integrity
 issues, including stale quotes being shown as fresh, as correctness bugs unless
 they expose a security vulnerability.
+# Public build credentials
+
+The browser and player relay call public Albion data endpoints without private API keys. Cloudflare and GitHub OAuth credentials are deployment credentials stored by local tooling, outside this repository. Never put credentials in `VITE_*` variables: those values are published in JavaScript. `PLAYER_PROXY_URL` is a public URL, not a secret. CI scans the compiled site for common credential formats as an additional check; it is not a guarantee that every possible secret format will be detected.

@@ -29,6 +29,7 @@ jobs:
       - run: npm run build:pages
         env:
           VITE_PLAYER_PROXY_URL: ${{ vars.PLAYER_PROXY_URL }}
+      - run: node scripts/check-public-build.mjs
       - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request'
         with:
