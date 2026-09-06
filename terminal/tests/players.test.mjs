@@ -7,6 +7,7 @@ import {
   fameRate,
 } from '../lib/players/analytics.ts';
 import { playerURL, validatePlayerData } from '../lib/players/source.ts';
+import { validateProfileUpdate } from '../lib/players/consistency.ts';
 test('player payload validation rejects malformed search and roster records', () => {
   assert.doesNotThrow(() =>
     validatePlayerData({ players: [], guilds: [] }, 'search'),
@@ -86,6 +87,73 @@ test('source-less profiles cannot be given fabricated timestamps', () => {
       '2026-09-06T01:00:00Z',
     ),
     null,
+  );
+});
+
+test('invalid fetch times and future source updates cannot become progress samples', () => {
+  assert.equal(snapshot(player, 'americas', 'fixture', 'invalid'), null);
+  assert.equal(
+    snapshot(player, 'americas', 'fixture', '2026-09-04T23:00:00Z'),
+    null,
+  );
+});
+
+test('equivalent UTC source timestamps represent one progress sample', () => {
+  const first = snapshot(player, 'americas', 'fixture', '2026-09-05T01:00:00Z');
+  const next = { ...first, updatedAt: '2026-09-05T00:00:00' };
+  assert.equal(retainSnapshot([first], next).length, 1);
+});
+
+test('profile updates preserve identity and never regress a dated saved record', () => {
+  const now = Date.parse('2026-09-06T12:00:00Z');
+  const dated = (Timestamp) => ({
+    ...player,
+    LifetimeStatistics: { ...player.LifetimeStatistics, Timestamp },
+  });
+  assert.doesNotThrow(() =>
+    validateProfileUpdate(
+      dated('2026-09-06T00:00:00Z'),
+      player.Id,
+      player,
+      now,
+    ),
+  );
+  assert.doesNotThrow(() =>
+    validateProfileUpdate(player, player.Id, player, now),
+  );
+  assert.throws(
+    () =>
+      validateProfileUpdate(
+        { ...player, Id: 'different_player' },
+        player.Id,
+        player,
+        now,
+      ),
+    /different player/,
+  );
+  assert.throws(
+    () =>
+      validateProfileUpdate(
+        dated('2026-09-04T00:00:00Z'),
+        player.Id,
+        player,
+        now,
+      ),
+    /older or undated/,
+  );
+  assert.throws(
+    () => validateProfileUpdate(dated(undefined), player.Id, player, now),
+    /older or undated/,
+  );
+  assert.throws(
+    () =>
+      validateProfileUpdate(
+        dated('2026-09-07T00:00:00Z'),
+        player.Id,
+        player,
+        now,
+      ),
+    /future/,
   );
 });
 test('resource rates preserve missing values and reject intervening counter resets', () => {

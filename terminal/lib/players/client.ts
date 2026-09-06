@@ -1,6 +1,12 @@
-import { readLocal, writeLocal } from '../market/client';
-import { runtime } from '../market/runtime';
-import { playerURL, validatePlayerData, type PlayerEnvelope } from './source';
+import { readLocal, writeLocal } from '../market/client.ts';
+import { runtime } from '../market/runtime.ts';
+import {
+  playerURL,
+  validatePlayerData,
+  type PlayerEnvelope,
+  type PublicIdentity,
+} from './source.ts';
+import { validateProfileUpdate } from './consistency.ts';
 const pending = new Map<string, Promise<PlayerEnvelope<unknown>>>();
 let nextAt = 0;
 export async function playerRequest<T>(
@@ -11,7 +17,11 @@ export async function playerRequest<T>(
   const source = playerURL(params);
   const key = 'amp:players:' + source;
   const old = readLocal<PlayerEnvelope<T> | null>(key, null);
-  if (old && Date.now() - Date.parse(old.fetchedAt) < 300000)
+  if (
+    old &&
+    Date.now() >= Date.parse(old.fetchedAt) &&
+    Date.now() - Date.parse(old.fetchedAt) < 300000
+  )
     return { ...old, cached: true };
   if (pending.has(key)) return pending.get(key) as Promise<PlayerEnvelope<T>>;
   const promise = (async () => {
@@ -50,6 +60,12 @@ export async function playerRequest<T>(
           : raw
       ) as PlayerEnvelope<T>;
       validatePlayerData(result.data, params.get('kind') || 'search');
+      if (params.get('kind') === 'player')
+        validateProfileUpdate(
+          result.data as PublicIdentity,
+          params.get('id') || '',
+          old?.data as PublicIdentity | undefined,
+        );
       writeLocal(key, result);
       return result;
     } catch (e) {

@@ -59,16 +59,15 @@ interface Recruit {
 }
 function SourceTime({ value }: { value?: string | null }) {
   const time = timestamp(value || '');
+  const validTime = Number.isFinite(time) && time <= Date.now() + 60000;
   return (
     <span
-      className={Number.isFinite(time) ? 'source-time' : 'muted'}
+      className={validTime ? 'source-time' : 'muted'}
       title={value || 'Source update timestamp unavailable'}
     >
-      {Number.isFinite(time)
-        ? new Date(time).toLocaleDateString()
-        : 'Unknown update time'}
+      {validTime ? new Date(time).toLocaleDateString() : 'Unknown update time'}
       <small>
-        {Number.isFinite(time)
+        {validTime
           ? new Date(time).toLocaleTimeString()
           : 'Do not assume current'}
       </small>

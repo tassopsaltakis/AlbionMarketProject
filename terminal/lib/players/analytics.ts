@@ -54,7 +54,15 @@ export function snapshot(
   observedAt: string,
 ): PlayerSnapshot | null {
   const s = playerStats(player);
-  if (!s.updatedAt || !Number.isFinite(timestamp(s.updatedAt))) return null;
+  const updated = timestamp(s.updatedAt || '');
+  const observed = timestamp(observedAt);
+  if (
+    !s.updatedAt ||
+    !Number.isFinite(updated) ||
+    !Number.isFinite(observed) ||
+    updated > observed + 60000
+  )
+    return null;
   return {
     playerId: player.Id,
     name: player.Name,
@@ -76,7 +84,8 @@ export function retainSnapshot(
   const same = existing.filter(
     (s) => s.region === next.region && s.playerId === next.playerId,
   );
-  if (same.some((s) => s.updatedAt === next.updatedAt)) return same;
+  if (same.some((s) => timestamp(s.updatedAt) === timestamp(next.updatedAt)))
+    return same;
   return [...same, next]
     .sort((a, b) => timestamp(a.updatedAt) - timestamp(b.updatedAt))
     .slice(-96);
