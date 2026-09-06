@@ -6,7 +6,20 @@ import {
   retainSnapshot,
   fameRate,
 } from '../lib/players/analytics.ts';
-import { playerURL } from '../lib/players/source.ts';
+import { playerURL, validatePlayerData } from '../lib/players/source.ts';
+test('player payload validation rejects malformed search and roster records', () => {
+  assert.doesNotThrow(() =>
+    validatePlayerData({ players: [], guilds: [] }, 'search'),
+  );
+  assert.doesNotThrow(() =>
+    validatePlayerData([{ Id: 'fixture', Name: 'Fixture' }], 'members'),
+  );
+  assert.throws(() => validatePlayerData({ players: {} }, 'search'));
+  assert.throws(() =>
+    validatePlayerData([{ Id: 'fixture', Name: null }], 'members'),
+  );
+  assert.throws(() => validatePlayerData({ error: 'Unavailable' }, 'player'));
+});
 const player = {
   Id: 'test_player_identifier',
   Name: 'Fixture only',

@@ -21,7 +21,7 @@ Open http://localhost:3000. The local server proxies public market and player re
 - Compare buy and sell quotes, estimated arbitrage proceeds, city premiums, and changes between observed snapshots.
 - Estimate gathering, transport, and production economics using editable assumptions. Production recipes must be supplied with a source; the app does not invent recipes.
 - Save watchlists, price alerts, screens, and recruiting notes in your browser; export tables as CSV.
-- Search public players and guilds, inspect resource-specific gathering fame, farming and crafting fame, and filter guild rosters for recruiting.
+- Use separate Players and Guilds tabs to inspect resource-specific gathering fame, farming and crafting fame, and filter guild rosters for recruiting.
 
 ## Data and interpretation
 
@@ -56,6 +56,12 @@ npx wrangler deploy --config worker/wrangler.jsonc
 Set `ALLOWED_ORIGINS` in the Worker configuration to your Pages origin. Set the GitHub Actions repository variable `PLAYER_PROXY_URL` to the deployed HTTPS Worker URL, then rerun the Pages workflow. A user can also enter a relay URL in the app's Settings. No Cloudflare credentials belong in the browser build. The Worker only proxies validated GameInfo routes and applies caching, timeouts, and a best-effort per-isolate request limit.
 
 ## Checks and structure
+
+### Free hosting policy
+
+Use GitHub Pages from this public repository and the **Workers Free** plan for the optional relay. Do not upgrade Workers or add paid bindings to run this project. The relay uses no database, storage subscription, paid API, or purchased domain. Cloudflare's free request quota is shared across the account; at its limit, lookups become unavailable until the quota resets. Check the account plan in Cloudflare before connecting a public deployment. Plan limits can change; see [Cloudflare's pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [limits](https://developers.cloudflare.com/workers/platform/limits/).
+
+### Validation
 
 ```sh
 cd terminal

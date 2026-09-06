@@ -1,6 +1,6 @@
 import { readLocal, writeLocal } from '../market/client';
 import { runtime } from '../market/runtime';
-import { playerURL, type PlayerEnvelope } from './source';
+import { playerURL, validatePlayerData, type PlayerEnvelope } from './source';
 const pending = new Map<string, Promise<PlayerEnvelope<unknown>>>();
 let nextAt = 0;
 export async function playerRequest<T>(
@@ -49,8 +49,7 @@ export async function playerRequest<T>(
             }
           : raw
       ) as PlayerEnvelope<T>;
-      if (!result.data || typeof result.data !== 'object')
-        throw new Error('Unexpected player response');
+      validatePlayerData(result.data, params.get('kind') || 'search');
       writeLocal(key, result);
       return result;
     } catch (e) {

@@ -24,6 +24,7 @@ import {
   PanelTop,
   Plus,
   Users,
+  UserRound,
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -115,7 +116,8 @@ const NAV = [
   ['Heatmap', PanelTop],
   ['Saved Screens', Bookmark],
   ['Settings', SettingsIcon],
-  ['Players & Guilds', Users],
+  ['Players', UserRound],
+  ['Guilds', Users],
 ] as const;
 export default function Terminal() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -169,6 +171,7 @@ export default function Terminal() {
       setView('Item Explorer');
     }
     if (NAV.some(([name]) => name === p.get('view'))) setView(p.get('view')!);
+    else if (p.get('view') === 'Players & Guilds') setView('Players');
     setTracked(readLocal('amt:tracked', DEFAULT_ITEMS));
     setReady(true);
     fetch(runtime().static ? runtime().base + 'items.json' : '/api/items')
@@ -725,8 +728,13 @@ export default function Terminal() {
           {view === 'Gathering' && (
             <Gathering {...viewProps} materials={materials} />
           )}
-          {view === 'Players & Guilds' && (
-            <PlayerExplorer settings={settings} notify={notify} />
+          {(view === 'Players' || view === 'Guilds') && (
+            <PlayerExplorer
+              key={view}
+              mode={view}
+              settings={settings}
+              notify={notify}
+            />
           )}
           {view === 'Transport' && <Transport {...viewProps} />}
           {view === 'Crafting' && <Production {...viewProps} />}

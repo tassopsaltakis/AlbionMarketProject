@@ -45,6 +45,23 @@ export interface SearchResult {
   players: PublicIdentity[];
   guilds: PublicIdentity[];
 }
+export function validatePlayerData(data: unknown, kind: string): void {
+  const identity = (value: unknown) => {
+    if (!value || typeof value !== 'object') return false;
+    const record = value as Record<string, unknown>;
+    return typeof record.Id === 'string' && typeof record.Name === 'string';
+  };
+  const identities = (value: unknown) =>
+    Array.isArray(value) && value.every(identity);
+  if (kind === 'search') {
+    const result = data as Partial<SearchResult> | null;
+    if (result && identities(result.players) && identities(result.guilds))
+      return;
+  } else if (kind === 'members' ? identities(data) : identity(data)) return;
+  throw new Error(
+    'The player source returned an unexpected response. Please retry later.',
+  );
+}
 export interface PlayerEnvelope<T> {
   data: T;
   source: string;

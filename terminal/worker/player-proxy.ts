@@ -1,4 +1,4 @@
-import { playerURL } from '../lib/players/source.ts';
+import { playerURL, validatePlayerData } from '../lib/players/source.ts';
 interface Environment {
   ALLOWED_ORIGINS?: string;
 }
@@ -38,6 +38,11 @@ const worker = {
         { error: 'Origin not allowed' },
         { status: 403, headers: cors },
       );
+    if (new URL(request.url).pathname === '/health')
+      return Response.json(
+        { status: 'ok', service: 'Albion Market Project player relay' },
+        { headers: cors },
+      );
     let source: string;
     try {
       source = playerURL(new URL(request.url).searchParams);
@@ -76,6 +81,10 @@ const worker = {
         fetchedAt: new Date().toISOString(),
         cached: false,
       };
+      validatePlayerData(
+        result.data,
+        new URL(request.url).searchParams.get('kind') || 'search',
+      );
       upstreamCache.set(source, result);
       if (upstreamCache.size > 100)
         upstreamCache.delete(upstreamCache.keys().next().value!);

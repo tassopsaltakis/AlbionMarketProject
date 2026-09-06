@@ -10,6 +10,7 @@ import {
 } from '@/lib/market/types';
 import { DEFAULT_ITEMS } from '@/lib/market/metadata';
 import { readLocal, writeLocal } from '@/lib/market/client';
+import { runtime } from '@/lib/market/runtime';
 import { valid, age, arbitrage } from '@/lib/market/analytics';
 import {
   Panel,
@@ -501,23 +502,24 @@ export function SettingsView({
         </button>
       </div>
       <div className="player-api-setting">
-        <label htmlFor="player-relay">
-          Player API relay URL (GitHub Pages)
-        </label>
+        <label htmlFor="player-relay">Custom player relay (optional)</label>
         <input
           id="player-relay"
           type="url"
-          placeholder="https://your-player-api.workers.dev"
+          placeholder={
+            runtime().playerProxy || 'https://your-player-api.workers.dev'
+          }
           value={settings.playerProxy || ''}
           onChange={(e) =>
             setSettings({ ...settings, playerProxy: e.target.value.trim() })
           }
         />
         <small>
-          Market data works directly on GitHub Pages. Player and guild data may
-          need the included relay because the source restricts browser access.
-          Use your project’s relay; it receives the public names and IDs you
-          search, never recruiting notes.
+          {runtime().playerProxy
+            ? 'The site relay is configured automatically. Leave this blank to use it. '
+            : 'The local server handles player lookups; static deployments need a configured relay. '}
+          A relay receives the public names and IDs you search, never recruiting
+          notes.
         </small>
       </div>
       <div className="data-sources">

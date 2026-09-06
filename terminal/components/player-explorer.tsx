@@ -75,9 +75,11 @@ function SourceTime({ value }: { value?: string | null }) {
   );
 }
 export function PlayerExplorer({
+  mode,
   settings,
   notify,
 }: {
+  mode: 'Players' | 'Guilds';
   settings: Settings;
   notify: (text: string) => void;
 }) {
@@ -267,7 +269,7 @@ export function PlayerExplorer({
   return (
     <>
       <Panel
-        title="Player & guild intelligence"
+        title={mode === 'Players' ? 'Player research' : 'Guild research'}
         tag={settings.region.toUpperCase()}
       >
         <form
@@ -279,10 +281,14 @@ export function PlayerExplorer({
         >
           <Search size={19} />
           <input
-            aria-label="Player or guild name"
+            aria-label={mode === 'Players' ? 'Player name' : 'Guild name'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a player or guild name"
+            placeholder={
+              mode === 'Players'
+                ? 'Search a player name'
+                : 'Search a guild name'
+            }
             minLength={2}
             maxLength={64}
           />
@@ -293,7 +299,10 @@ export function PlayerExplorer({
         <div className="player-tabs">
           <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
             <TabsList variant="line">
-              {['Search', 'Guild roster', 'Recruiting shortlist'].map((t) => (
+              {(mode === 'Guilds'
+                ? ['Search', 'Guild roster', 'Recruiting shortlist']
+                : ['Search', 'Recruiting shortlist']
+              ).map((t) => (
                 <TabsTrigger key={t} value={t}>
                   {t}
                   {t === 'Recruiting shortlist' ? ` (${saved.length})` : ''}
@@ -317,85 +326,91 @@ export function PlayerExplorer({
       {tab === 'Search' && (
         <>
           {results && !detail && (
-            <div className="two-column">
-              <Panel title="Players" tag="SOURCE-LIMITED RESULTS">
-                <MarketTable
-                  rows={results.players || []}
-                  rowKey={(r) => r.Id}
-                  columns={[
-                    {
-                      label: 'PLAYER',
-                      render: (r) => (
-                        <button
-                          className="identity-link"
-                          onClick={() => void openPlayer(r.Id)}
-                        >
-                          <UserRound size={16} />
-                          {r.Name}
-                        </button>
-                      ),
-                    },
-                    {
-                      label: 'GUILD REPORTED',
-                      render: (r) => r.GuildName || 'Not reported',
-                    },
-                    {
-                      label: 'PROFILE',
-                      render: (r) => (
-                        <button
-                          className="quiet"
-                          onClick={() => void openPlayer(r.Id)}
-                        >
-                          View profile ↗
-                        </button>
-                      ),
-                    },
-                  ]}
-                  limit={15}
-                />
-              </Panel>
-              <Panel title="Guilds">
-                <MarketTable
-                  rows={results.guilds || []}
-                  rowKey={(r) => r.Id}
-                  columns={[
-                    {
-                      label: 'GUILD',
-                      render: (r) => (
-                        <button
-                          className="identity-link"
-                          onClick={() => void openGuild(r)}
-                        >
-                          <Users size={16} />
-                          {r.Name}
-                        </button>
-                      ),
-                    },
-                    {
-                      label: 'ALLIANCE',
-                      render: (r) => r.AllianceName || 'Not reported',
-                    },
-                    {
-                      label: 'ROSTER',
-                      render: (r) => (
-                        <button
-                          className="quiet"
-                          onClick={() => void openGuild(r)}
-                        >
-                          Open roster ↗
-                        </button>
-                      ),
-                    },
-                  ]}
-                  limit={15}
-                />
-              </Panel>
+            <div>
+              {mode === 'Players' && (
+                <Panel title="Players" tag="SOURCE-LIMITED RESULTS">
+                  <MarketTable
+                    rows={results.players || []}
+                    rowKey={(r) => r.Id}
+                    columns={[
+                      {
+                        label: 'PLAYER',
+                        render: (r) => (
+                          <button
+                            className="identity-link"
+                            onClick={() => void openPlayer(r.Id)}
+                          >
+                            <UserRound size={16} />
+                            {r.Name}
+                          </button>
+                        ),
+                      },
+                      {
+                        label: 'GUILD REPORTED',
+                        render: (r) => r.GuildName || 'Not reported',
+                      },
+                      {
+                        label: 'PROFILE',
+                        render: (r) => (
+                          <button
+                            className="quiet"
+                            onClick={() => void openPlayer(r.Id)}
+                          >
+                            View profile ↗
+                          </button>
+                        ),
+                      },
+                    ]}
+                    limit={15}
+                  />
+                </Panel>
+              )}
+              {mode === 'Guilds' && (
+                <Panel title="Guilds">
+                  <MarketTable
+                    rows={results.guilds || []}
+                    rowKey={(r) => r.Id}
+                    columns={[
+                      {
+                        label: 'GUILD',
+                        render: (r) => (
+                          <button
+                            className="identity-link"
+                            onClick={() => void openGuild(r)}
+                          >
+                            <Users size={16} />
+                            {r.Name}
+                          </button>
+                        ),
+                      },
+                      {
+                        label: 'ALLIANCE',
+                        render: (r) => r.AllianceName || 'Not reported',
+                      },
+                      {
+                        label: 'ROSTER',
+                        render: (r) => (
+                          <button
+                            className="quiet"
+                            onClick={() => void openGuild(r)}
+                          >
+                            Open roster ↗
+                          </button>
+                        ),
+                      },
+                    ]}
+                    limit={15}
+                  />
+                </Panel>
+              )}
             </div>
           )}
           {!detail && !results && !busy && (
             <Panel title="Find the people behind the economy">
               <Empty
-                text="Look up a player or guild"
+                text={
+                  mode === 'Players' ? 'Look up a player' : 'Look up a guild'
+                }
                 detail="Compare reported gathering specialities, farming fame, and crafting experience. Save candidates to build a recruiting shortlist."
               />
             </Panel>
