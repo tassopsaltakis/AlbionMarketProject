@@ -19,7 +19,7 @@ Open http://localhost:3000. The local server proxies public market and player re
 - Search 10,026 cataloged items; compare historical average prices across cities and timeframes.
 - Browse all 248 cataloged raw and refined material variants, including their supported tiers and enchantments. Filter by family, city, price, freshness, and coverage.
 - Compare buy and sell quotes, estimated arbitrage proceeds, city premiums, and changes between observed snapshots.
-- Estimate gathering, transport, and production economics using editable assumptions. Production recipes must be supplied with a source; the app does not invent recipes.
+- Estimate gathering, transport, and production economics using editable assumptions. Select from 2,878 cataloged direct material recipes, including 130 refining routes, or import a sourced recipe. Set expected prices and bank inventory, then export the initial-batch shopping list.
 - Save watchlists, price alerts, screens, and recruiting notes in your browser; export tables as CSV.
 - Use separate Players and Guilds tabs to inspect resource-specific gathering fame, farming and crafting fame, and filter guild rosters for recruiting.
 
@@ -28,6 +28,8 @@ Open http://localhost:3000. The local server proxies public market and player re
 Market prices and historical averages come from the [Albion Online Data Project](https://www.albion-online-data.com/). These are crowdsourced observations, not a live order book. Missing prices remain unavailable. Each quote retains its source timestamp, including when served from a cache. History consists of reported average-price buckets, not exchange candles. Apparent opportunities may disappear before a trade can be executed.
 
 The item catalog is derived from [ao-bin-dumps](https://github.com/ao-data/ao-bin-dumps); icons come from Albion's public render service. Update the bundled catalog with `npm run metadata:update`, then review the resulting changes.
+
+Update built-in recipes with `node scripts/update-recipes.mjs` from `terminal`. The recipe importer supports explicit direct material inputs and enchantments, including differing stone output quantities. Artifact, token, transmutation, and upgrade routes are excluded. Return rates, specialization-adjusted focus, station fees, and sale assumptions remain user inputs. Bank inventory reduces the initial shopping bill while still carrying an opportunity cost in profit estimates.
 
 Player and guild data comes from Albion's public GameInfo endpoints for Americas, Europe, and Asia. Lifetime fame is not a resource count, current activity, or proof of gathering speed. The app calculates **observed fame per hour** only after it has retained distinct source updates at least one hour apart. It uses the source's elapsed time, and labels old statistics. Farming fame and resource gathering fame are separate measures. Inventory, focus, faction activity, online status, and actual resources gathered per hour are not supplied by these endpoints.
 

@@ -102,6 +102,7 @@ export function PlayerExplorer({
       'gathering' | 'crafting' | 'farming' | 'fishing'
     >('gathering');
   const generation = useRef(0);
+  const [trackingWindow, setTrackingWindow] = useState('All saved');
   useEffect(() => {
     setRecruits(readLocal<Recruit[]>('amp:recruits', []));
   }, []);
@@ -241,7 +242,19 @@ export function PlayerExplorer({
     notify(player.Name + ' saved to your local recruiting shortlist.');
   }
   const stats = detail ? playerStats(detail.data) : null;
-  const rate = fameRate(snapshots, rateMetric);
+  const trackingDays =
+    trackingWindow === '24H'
+      ? 1
+      : trackingWindow === '7D'
+        ? 7
+        : trackingWindow === '30D'
+          ? 30
+          : Infinity;
+  const visibleSnapshots = snapshots.filter(
+    (entry) =>
+      timestamp(entry.updatedAt) >= Date.now() - trackingDays * 86400000,
+  );
+  const rate = fameRate(visibleSnapshots, rateMetric);
   const rosterRows = roster
     .map((player) => ({ player, stats: playerStats(player) }))
     .filter(
@@ -593,12 +606,25 @@ export function PlayerExplorer({
                   title="Observed fame gains"
                   tag="LOCAL SNAPSHOTS"
                   actions={
-                    <SelectBox
-                      label="Fame metric"
-                      value={rateMetric}
-                      onChange={(v) => setRateMetric(v as typeof rateMetric)}
-                      options={['gathering', 'farming', 'crafting', 'fishing']}
-                    />
+                    <>
+                      <SelectBox
+                        label="Tracking window"
+                        value={trackingWindow}
+                        onChange={setTrackingWindow}
+                        options={['24H', '7D', '30D', 'All saved']}
+                      />
+                      <SelectBox
+                        label="Fame metric"
+                        value={rateMetric}
+                        onChange={(v) => setRateMetric(v as typeof rateMetric)}
+                        options={[
+                          'gathering',
+                          'farming',
+                          'crafting',
+                          'fishing',
+                        ]}
+                      />
+                    </>
                   }
                 >
                   <div className="stats-grid rate-stats">
@@ -617,7 +643,7 @@ export function PlayerExplorer({
                       note="Includes offline time; not a session rate"
                     />
                   </div>
-                  {snapshots.length > 1 ? (
+                  {visibleSnapshots.length > 1 ? (
                     <div className="resource-chart">
                       <ResponsiveContainer
                         width="100%"
@@ -625,7 +651,7 @@ export function PlayerExplorer({
                         initialDimension={{ width: 400, height: 230 }}
                       >
                         <AreaChart
-                          data={snapshots.map((s) => ({
+                          data={visibleSnapshots.map((s) => ({
                             ...s,
                             time: timestamp(s.updatedAt),
                           }))}
@@ -664,9 +690,9 @@ export function PlayerExplorer({
                   ) : (
                     <Empty
                       text={
-                        snapshots.length
+                        visibleSnapshots.length
                           ? 'Baseline saved'
-                          : 'No timestamped baseline available'
+                          : 'No source updates in this window'
                       }
                       detail="A rate needs two distinct source updates at least one hour apart. Refreshing an unchanged record does not create progress."
                     />

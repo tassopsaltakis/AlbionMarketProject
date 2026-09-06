@@ -26,6 +26,14 @@ export default defineConfig({
           ),
         });
         this.emitFile({ type: 'asset', fileName: '.nojekyll', source: '' });
+        this.emitFile({
+          type: 'asset',
+          fileName: 'recipes.json',
+          source: fs.readFileSync(
+            new URL('./data/recipes.json', import.meta.url),
+            'utf8',
+          ),
+        });
       },
     },
   ],

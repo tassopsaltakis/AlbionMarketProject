@@ -1,4 +1,6 @@
 'use client';
+import { shoppingList } from '@/lib/market/planning';
+import { runtime } from '@/lib/market/runtime';
 import { useEffect, useState } from 'react';
 import {
   CITIES,
@@ -16,6 +18,7 @@ import {
 import { readLocal, writeLocal, marketRequest } from '@/lib/market/client';
 import {
   Panel,
+  ExportButton,
   Stat,
   Num,
   CityBadge,
@@ -503,6 +506,11 @@ const EXAMPLE: Recipe = {
     'Replace with your verified recipe source; quantities here are a schema example only',
 };
 export function Production(p: ViewProps & { refining?: boolean }) {
+  const [recipeQuery, setRecipeQuery] = useState('');
+  const [catalogDate, setCatalogDate] = useState('');
+  const [owned, setOwned] = useState<Record<string, number>>({});
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
+  const [saleOverride, setSaleOverride] = useState(0);
   const [recipes, setRecipes] = useState<Recipe[]>([]),
     [selected, setSelected] = useState(''),
     [text, setText] = useState(''),
@@ -519,8 +527,48 @@ export function Production(p: ViewProps & { refining?: boolean }) {
     const saved = readLocal<Recipe[]>('amt:recipes', []);
     setRecipes(saved);
     setSelected(saved[0]?.name || '');
-  }, []);
+    const controller = new AbortController();
+    fetch(runtime().static ? runtime().base + 'recipes.json' : '/api/recipes', {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Recipe catalog is unavailable');
+        return response.json();
+      })
+      .then((raw) => {
+        const data = raw as {
+          retrievedAt: string;
+          recipes: (Recipe & { category: string })[];
+        };
+        const builtins = data.recipes.filter(
+          (r) => r.category === (p.refining ? 'refining' : 'crafting'),
+        );
+        const merged = [
+          ...builtins.filter((r) => !saved.some((s) => s.name === r.name)),
+          ...saved,
+        ];
+        setRecipes(merged);
+        setSelected(merged[0]?.name || '');
+        setCatalogDate(data.retrievedAt);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Recipe catalog is unavailable',
+          );
+      });
+    return () => controller.abort();
+  }, [p.refining]);
   const recipe = recipes.find((r) => r.name === selected);
+  const filteredRecipes = recipes
+    .filter((r) =>
+      (r.name + ' ' + r.output)
+        .toLowerCase()
+        .includes(recipeQuery.toLowerCase()),
+    )
+    .slice(0, 60);
   useEffect(() => {
     if (recipe) {
       const ids = [recipe.output, ...recipe.ingredients.map((i) => i.item)];
@@ -540,7 +588,10 @@ export function Production(p: ViewProps & { refining?: boolean }) {
       return { ...i, q: qs.find((q) => q.city === city), cheapest: qs[0] };
     }) || [];
   const prices = Object.fromEntries(
-    ingredientRows.map((i) => [i.item, i.q?.sell_price_min || 0]),
+    ingredientRows.map((i) => [
+      i.item,
+      overrides[i.item] > 0 ? overrides[i.item] : i.q?.sell_price_min || 0,
+    ]),
   );
   const output = p.quotes.find(
     (q) =>
@@ -552,12 +603,18 @@ export function Production(p: ViewProps & { refining?: boolean }) {
     99,
     returns + cityBonus + (focus ? focusReturn : 0),
   );
+  const salePrice =
+    saleOverride > 0 ? saleOverride : output?.sell_price_min || 0;
+  const shopping = recipe ? shoppingList(recipe, quantity, owned, prices) : [];
+  const shoppingTotal = shopping.every((row) => row.spend != null)
+    ? shopping.reduce((sum, row) => sum + row.spend!, 0)
+    : null;
   const result =
-    recipe && output
+    recipe && salePrice > 0
       ? production(
           recipe,
           prices,
-          output.sell_price_min,
+          salePrice,
           quantity,
           effectiveReturn,
           station,
@@ -566,11 +623,11 @@ export function Production(p: ViewProps & { refining?: boolean }) {
         )
       : null;
   const noFocus =
-    recipe && output
+    recipe && salePrice > 0
       ? production(
           recipe,
           prices,
-          output.sell_price_min,
+          salePrice,
           quantity,
           Math.min(99, returns + cityBonus),
           station,
@@ -611,7 +668,11 @@ export function Production(p: ViewProps & { refining?: boolean }) {
       ];
       setRecipes(merged);
       setSelected(list[0].name);
-      writeLocal('amt:recipes', merged);
+      const saved = readLocal<Recipe[]>('amt:recipes', []);
+      writeLocal('amt:recipes', [
+        ...saved.filter((r) => !list.some((n) => n.name === r.name)),
+        ...list,
+      ]);
       setError('');
       setText('');
       p.notify('Verified recipe import saved locally.');
@@ -626,8 +687,9 @@ export function Production(p: ViewProps & { refining?: boolean }) {
         tag="VERIFIED RECIPE ENGINE"
       >
         <p className="settings-help" style={{ paddingTop: 18 }}>
-          Import a recipe you have verified. The market API provides prices, not
-          authoritative recipes or live return mechanics.{' '}
+          Choose a recipe from the public game-data catalog or import your own.
+          Quantities are cataloged; return rates, station fees, and prices
+          depend on your setup.{' '}
           {p.refining
             ? 'Supported output families: ore → bars, wood → planks, fiber → cloth, hide → leather, and stone → blocks.'
             : ''}
@@ -635,12 +697,27 @@ export function Production(p: ViewProps & { refining?: boolean }) {
         {recipes.length > 0 && (
           <>
             <div className="toolbar">
+              <input
+                aria-label="Find recipe"
+                placeholder="Find recipe by item name or ID"
+                value={recipeQuery}
+                onChange={(e) => setRecipeQuery(e.target.value)}
+              />
               <SelectBox
                 label="Recipe"
                 value={selected}
-                onChange={setSelected}
-                options={recipes.map((r) => r.name)}
+                onChange={(name) => {
+                  setSelected(name);
+                  setSaleOverride(0);
+                }}
+                options={[
+                  ...new Set([selected, ...filteredRecipes.map((r) => r.name)]),
+                ].filter(Boolean)}
               />
+              <span className="muted">
+                {recipes.length.toLocaleString()} recipes · showing up to 60
+                matches
+              </span>
               <SelectBox
                 label="Crafting city"
                 value={city}
@@ -653,9 +730,16 @@ export function Production(p: ViewProps & { refining?: boolean }) {
             </div>
             <div className="form-grid">
               <NumberField
+                label="Expected sale price / unit (0 = market)"
+                value={saleOverride}
+                onChange={setSaleOverride}
+              />
+              <NumberField
                 label="Recipe executions"
                 value={quantity}
-                onChange={setQuantity}
+                onChange={(value) =>
+                  setQuantity(Math.max(1, Math.floor(value)))
+                }
                 min={1}
               />
               <NumberField
@@ -705,6 +789,30 @@ export function Production(p: ViewProps & { refining?: boolean }) {
                 },
                 { label: 'UNITS / RECIPE', render: (r) => r.quantity },
                 {
+                  label: 'MY UNIT PRICE',
+                  render: (r) => (
+                    <NumberField
+                      label={p.item(r.item).name + ' price (0 = market)'}
+                      value={overrides[r.item] || 0}
+                      onChange={(value) =>
+                        setOverrides((old) => ({ ...old, [r.item]: value }))
+                      }
+                    />
+                  ),
+                },
+                {
+                  label: 'IN MY BANK',
+                  render: (r) => (
+                    <NumberField
+                      label={p.item(r.item).name + ' owned units'}
+                      value={owned[r.item] || 0}
+                      onChange={(value) =>
+                        setOwned((old) => ({ ...old, [r.item]: value }))
+                      }
+                    />
+                  ),
+                },
+                {
                   label: 'LOCAL ASK',
                   render: (r) => (
                     <>
@@ -737,6 +845,11 @@ export function Production(p: ViewProps & { refining?: boolean }) {
               ]}
             />
             <div className="stats-grid">
+              <Stat
+                label="MATERIALS TO BUY"
+                value={<Num value={shoppingTotal} />}
+                note="Initial batch, after bank inventory"
+              />
               <Stat
                 label="EFFECTIVE COST / RECIPE"
                 value={<Num value={result?.cost} />}
@@ -789,17 +902,67 @@ export function Production(p: ViewProps & { refining?: boolean }) {
               </div>
             </div>
             <p className="footnote">
+              {catalogDate && (
+                <>
+                  Catalog retrieved {new Date(catalogDate).toLocaleDateString()}
+                  .{' '}
+                </>
+              )}
               Recipe source: {recipe?.source}. Entered return increments are
               added and capped at 99%; enter effective game values, not
               unconverted production bonuses. Sale assumes listing at the
               observed ask; execution is not guaranteed.
             </p>
+            <Panel
+              title="Shopping list"
+              actions={
+                <ExportButton
+                  name="craft-shopping-list"
+                  rows={shopping.map((row) => ({
+                    ...row,
+                    name: p.item(row.item).name,
+                    city,
+                    region: p.settings.region,
+                  }))}
+                />
+              }
+            >
+              <MarketTable
+                rows={shopping}
+                rowKey={(row) => row.item}
+                columns={[
+                  { label: 'MATERIAL', render: (row) => p.item(row.item).name },
+                  {
+                    label: 'BATCH NEEDS',
+                    render: (row) => <Num value={row.required} />,
+                  },
+                  {
+                    label: 'OWNED',
+                    render: (row) => <Num value={row.inventory} />,
+                  },
+                  {
+                    label: 'BUY',
+                    render: (row) => <Num value={row.purchase} />,
+                  },
+                  {
+                    label: 'ESTIMATED SPEND',
+                    render: (row) => <Num value={row.spend} />,
+                  },
+                ]}
+              />
+              <p className="footnote">
+                This list funds the entire batch before returns. Owned materials
+                still count at the selected price when measuring profit.
+                Returned resources, station fees, and sales fees are reflected
+                separately in profitability.
+              </p>
+            </Panel>
           </>
         )}
         {!recipes.length && (
           <Empty
             text="Add your first verified recipe"
-            detail="Import recipe quantities and a source below. We do not ship invented recipes."
+            detail="The built-in catalog is loading. You can also import recipe quantities and a source below."
           />
         )}
       </Panel>
