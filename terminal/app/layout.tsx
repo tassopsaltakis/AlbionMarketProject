@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Albion Market Terminal',
+  title: 'Albion Market Project',
   description:
     'Timestamp-aware market intelligence for Albion Online. Compare cities, inspect prices and evaluate trade routes.',
 };

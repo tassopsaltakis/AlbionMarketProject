@@ -1,0 +1,21 @@
+Albion Market Project
+Copyright 2026 tassopsaltakis and contributors.
+
+Original project code is licensed under the Apache License, Version 2.0.
+Contributors retain copyright in their respective contributions. This license
+does not transfer ownership of the project or grant trademark rights.
+
+Albion Online names, item metadata, icons, and other game assets belong to
+their respective rights holders. They are not relicensed by this project.
+Market observations are supplied by the community-operated Albion Online
+Data Project. This project is not affiliated with or endorsed by Sandbox
+Interactive or the Albion Online Data Project.
+
+Item-name catalog source:
+https://github.com/ao-data/ao-bin-dumps/tree/master/formatted
+
+Market API source:
+https://www.albion-online-data.com/
+
+Third-party software retains its original licenses. See package-lock.json
+and the license files distributed with each installed dependency.

@@ -39,7 +39,10 @@ export function valid(
   maxAge = Infinity,
   now = Date.now(),
 ) {
-  const observationAge = age(q[side === 'sell' ? 'sell_price_min_date' : 'buy_price_max_date'], now);
+  const observationAge = age(
+    q[side === 'sell' ? 'sell_price_min_date' : 'buy_price_max_date'],
+    now,
+  );
   return (
     Number.isFinite(observationAge) &&
     q[side === 'sell' ? 'sell_price_min' : 'buy_price_max'] > 0 &&
@@ -197,7 +200,15 @@ export function production(
     (sum, i) => sum + i.quantity * prices[i.item],
     0,
   );
-  const cost = raw * (1 - returns / 100) + station;
+  const cost =
+    recipe.ingredients.reduce(
+      (sum, i) =>
+        sum +
+        i.quantity *
+          prices[i.item] *
+          (i.returnable === false ? 1 : 1 - returns / 100),
+      0,
+    ) + station;
   const revenue = sell * recipe.outputQuantity * (1 - (tax + setup) / 100);
   return {
     raw,
@@ -213,7 +224,14 @@ export function csv(rows: Record<string, unknown>[]) {
   const keys = Object.keys(rows[0]);
   const cell = (x: unknown) =>
     '"' +
-    String(x ?? '')
+    (typeof x === 'string'
+      ? x
+      : typeof x === 'number' || typeof x === 'boolean'
+        ? `${x}`
+        : x == null
+          ? ''
+          : JSON.stringify(x)
+    )
       .replaceAll('"', '""')
       .replace(/^[=+@-]/, "'$&") +
     '"';

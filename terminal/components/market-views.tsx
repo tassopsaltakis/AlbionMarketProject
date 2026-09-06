@@ -1,14 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { Star, ArrowRight, TriangleAlert } from 'lucide-react';
-import {
-  age,
-  ageLabel,
-  arbitrage,
-  valid,
-  stats,
-  outlier,
-} from '@/lib/market/analytics';
+import { ArrowRight } from 'lucide-react';
+import { age, arbitrage, valid, stats, outlier } from '@/lib/market/analytics';
 import {
   CITIES,
   type Quote,
@@ -27,7 +20,6 @@ import {
   Toggle,
   Stat,
   ExportButton,
-  Empty,
 } from './market-ui';
 export interface ViewProps {
   quotes: Quote[];
@@ -296,9 +288,7 @@ export function ArbitrageScanner(p: ViewProps) {
                 : b.profit - a.profit,
         ),
     [
-      p.quotes,
-      p.settings,
-      p.now,
+      p,
       minProfit,
       minMargin,
       tier,

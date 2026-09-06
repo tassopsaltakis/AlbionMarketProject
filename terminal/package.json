@@ -1,12 +1,24 @@
 {
-  "name": "sites-project",
+  "name": "albion-market-project",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tassopsaltakis/AlbionMarketProject.git",
+    "directory": "terminal"
+  },
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "vinext dev",
+    "dev:pages": "vite --config vite.pages.config.ts",
+    "build:pages": "vite build --config vite.pages.config.ts",
+    "preview:pages": "vite preview --config vite.pages.config.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "metadata:update": "node scripts/update-metadata.mjs",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",

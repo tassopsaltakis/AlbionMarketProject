@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Bell, Plus, Trash2, Star } from 'lucide-react';
+import { Bell, Plus, Trash2 } from 'lucide-react';
 import {
   CITIES,
   type Settings,
@@ -113,7 +113,7 @@ export function usePersonalTools(p: ViewProps) {
       }
       if (!triggered) fired.current.delete(a.id);
     }
-  }, [p.quotes, p.now, alerts, p.settings]);
+  }, [p, alerts, loaded]);
   return { watchlists, setWatchlists, alerts, setAlerts, fired };
 }
 export type Personal = ReturnType<typeof usePersonalTools>;
@@ -393,7 +393,7 @@ export function SettingsView({
   return (
     <Panel title="Terminal settings" tag="LOCAL PREFERENCES">
       <div className="form-grid">
-        <label className="field">
+        <div className="field">
           Server
           <SelectBox
             label="Server region"
@@ -403,8 +403,8 @@ export function SettingsView({
             }
             options={['americas', 'europe', 'asia']}
           />
-        </label>
-        <label className="field">
+        </div>
+        <div className="field">
           Default city
           <SelectBox
             label="Default city"
@@ -412,8 +412,8 @@ export function SettingsView({
             onChange={(city) => setSettings({ ...settings, city })}
             options={CITIES}
           />
-        </label>
-        <label className="field">
+        </div>
+        <div className="field">
           Hide quotes older than
           <SelectBox
             label="Maximum quote age"
@@ -428,7 +428,7 @@ export function SettingsView({
               { value: '0', label: 'Never' },
             ]}
           />
-        </label>
+        </div>
         <NumberField
           label="Market tax % (editable assumption)"
           value={settings.tax}
@@ -443,7 +443,7 @@ export function SettingsView({
           max={49}
           step={0.1}
         />
-        <label className="field">
+        <div className="field">
           Item quality
           <SelectBox
             label="Item quality"
@@ -457,8 +457,8 @@ export function SettingsView({
               { value: '5', label: '5 · Masterpiece' },
             ]}
           />
-        </label>
-        <label className="field">
+        </div>
+        <div className="field">
           Density
           <SelectBox
             label="Table density"
@@ -466,7 +466,7 @@ export function SettingsView({
             onChange={(density) => setSettings({ ...settings, density })}
             options={['compact', 'comfortable']}
           />
-        </label>
+        </div>
         <Toggle
           checked={settings.premium}
           onChange={(premium) => setSettings({ ...settings, premium })}
@@ -499,6 +499,51 @@ export function SettingsView({
         >
           <Bell size={14} /> Enable browser notifications
         </button>
+      </div>
+      <div className="player-api-setting">
+        <label htmlFor="player-relay">
+          Player API relay URL (GitHub Pages)
+        </label>
+        <input
+          id="player-relay"
+          type="url"
+          placeholder="https://your-player-api.workers.dev"
+          value={settings.playerProxy || ''}
+          onChange={(e) =>
+            setSettings({ ...settings, playerProxy: e.target.value.trim() })
+          }
+        />
+        <small>
+          Market data works directly on GitHub Pages. Player and guild data may
+          need the included relay because the source restricts browser access.
+          Use your project’s relay; it receives the public names and IDs you
+          search, never recruiting notes.
+        </small>
+      </div>
+      <div className="data-sources">
+        <h3>Public data sources</h3>
+        <a
+          href="https://www.albion-online-data.com/api/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Albion Online Data Project · prices, sell-order history, gold
+        </a>
+        <a
+          href="https://gameinfo.albiononline.com/api/gameinfo/search?q=Albion"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Albion Game Info · public player statistics and guild rosters
+        </a>
+        <a
+          href="https://github.com/ao-data/ao-bin-dumps/tree/master/formatted"
+          target="_blank"
+          rel="noreferrer"
+        >
+          ao-data catalog · item names and identifiers
+        </a>
+        <span>Albion render service · item icons</span>
       </div>
     </Panel>
   );

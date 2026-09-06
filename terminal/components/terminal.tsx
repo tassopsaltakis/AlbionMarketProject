@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   PanelTop,
   Plus,
+  Users,
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -81,6 +82,10 @@ import {
   searchItems,
 } from '@/lib/market/metadata';
 import { marketRequest, readLocal, writeLocal } from '@/lib/market/client';
+import { runtime } from '@/lib/market/runtime';
+import { materialFamily, materialUniverse } from '@/lib/market/materials';
+import { MaterialOverview } from './material-overview';
+import { PlayerExplorer } from './player-explorer';
 import { age, arbitrage, valid } from '@/lib/market/analytics';
 import {
   SelectBox,
@@ -90,7 +95,6 @@ import {
   ItemLabel,
   Panel,
   Stat,
-  Empty,
   MarketTable,
   ExportButton,
 } from './market-ui';
@@ -111,6 +115,7 @@ const NAV = [
   ['Heatmap', PanelTop],
   ['Saved Screens', Bookmark],
   ['Settings', SettingsIcon],
+  ['Players & Guilds', Users],
 ] as const;
 export default function Terminal() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -123,10 +128,11 @@ export default function Terminal() {
   const [error, setError] = useState('');
   const [cached, setCached] = useState(false);
   const [last, setLast] = useState('');
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [palette, setPalette] = useState(false);
   const [search, setSearch] = useState('');
   const generation = useRef(0);
+  const activeRequest = useRef('');
   const [toast, setToast] = useState('');
   const [previous, setPrevious] = useState<Quote[]>([]);
   const notify = useCallback((message: string) => {
@@ -139,9 +145,13 @@ export default function Terminal() {
     [catalog],
   );
   const item = (id: string) => itemMap.get(id) || makeItem(id);
+  const materials = useMemo(() => materialUniverse(catalog), [catalog]);
   const ids = useMemo(
-    () => [...new Set([...tracked, selected])].sort().join(','),
-    [tracked, selected],
+    () =>
+      [...new Set([...materials.map((i) => i.id), ...tracked, selected])]
+        .sort()
+        .join(','),
+    [tracked, selected, materials],
   );
   useEffect(() => {
     const p = new URLSearchParams(location.search);
@@ -158,13 +168,14 @@ export default function Terminal() {
       setSelected(p.get('item')!);
       setView('Item Explorer');
     }
-    if(NAV.some(([name])=>name===p.get('view')))setView(p.get('view')!);
+    if (NAV.some(([name]) => name === p.get('view'))) setView(p.get('view')!);
     setTracked(readLocal('amt:tracked', DEFAULT_ITEMS));
     setReady(true);
-    fetch('/api/items')
+    fetch(runtime().static ? runtime().base + 'items.json' : '/api/items')
       .then((r) => r.json() as Promise<{ items: Item[] }>)
       .then((r) => {
-        if (r.items?.length) setCatalog(r.items);
+        if (r.items?.length)
+          setCatalog(r.items.map((i) => makeItem(i.id, i.name)));
       })
       .catch(() => {});
   }, []);
@@ -176,43 +187,68 @@ export default function Terminal() {
       p.set('item', selected);
       p.set('city', settings.city);
       p.set('server', settings.region);
-      p.set('view',view);
+      p.set('view', view);
       history.replaceState(null, '', '?' + p.toString());
     }
-  }, [ready, settings, selected, tracked,view]);
+  }, [ready, settings, selected, tracked, view]);
   const refresh = useCallback(async () => {
+    const requestKey = settings.region + ':' + settings.quality + ':' + ids;
+    if (activeRequest.current === requestKey) return;
+    activeRequest.current = requestKey;
     const ticket = ++generation.current;
     setBusy(true);
     try {
-      const chunks = ids.split(',').reduce<string[][]>((all, id, i) => {
-        (all[Math.floor(i / 60)] ||= []).push(id);
-        return all;
-      }, []);
+      const groups = new Map<number, string[]>();
+      for (const id of ids.split(',')) {
+        const quality = materialFamily(id) ? 1 : settings.quality;
+        groups.set(quality, [...(groups.get(quality) || []), id]);
+      }
+      const chunks = [...groups.entries()].flatMap(([quality, list]) =>
+        Array.from({ length: Math.ceil(list.length / 60) }, (_, i) => ({
+          quality,
+          items: list.slice(i * 60, (i + 1) * 60),
+        })),
+      );
       const results = [];
-      for (const chunk of chunks)
-        results.push(
-          await marketRequest<Quote[]>(
-            new URLSearchParams({
-              server: settings.region,
-              items: chunk.join(','),
-              quality: String(settings.quality),
-            }).toString(),
-          ),
-        );
+      const failedItems = new Set<string>();
+      const failures: string[] = [];
+      for (const chunk of chunks) {
+        try {
+          results.push(
+            await marketRequest<Quote[]>(
+              new URLSearchParams({
+                server: settings.region,
+                items: chunk.items.join(','),
+                quality: String(chunk.quality),
+              }).toString(),
+            ),
+          );
+        } catch (error) {
+          chunk.items.forEach((id) => failedItems.add(id));
+          failures.push(
+            error instanceof Error ? error.message : 'Source unavailable',
+          );
+        }
+      }
       if (ticket !== generation.current) return;
       const next = results.flatMap((r) => r.data);
       const snapshotKey =
         'amt:snapshot:' + settings.region + ':' + settings.quality;
       const prev = readLocal<Quote[]>(snapshotKey, []);
+      next.push(...prev.filter((quote) => failedItems.has(quote.item_id)));
       const baselineKey = snapshotKey + ':baseline';
       const baselines = readLocal<Quote[]>(baselineKey, []);
-      const keyOf=(q:Quote)=>q.item_id+':'+q.city+':'+q.quality;
-      const previousMap=new Map(prev.map(q=>[keyOf(q),q]));
-      const baselineIndexes=new Map(baselines.map((q,i)=>[keyOf(q),i]));
+      const keyOf = (q: Quote) => q.item_id + ':' + q.city + ':' + q.quality;
+      const previousMap = new Map(prev.map((q) => [keyOf(q), q]));
+      const baselineIndexes = new Map(baselines.map((q, i) => [keyOf(q), i]));
       for (const q of next) {
         const old = previousMap.get(keyOf(q));
-        if (old && old.sell_price_min_date !== q.sell_price_min_date) {
-          const i = baselineIndexes.get(keyOf(q))??-1;
+        if (
+          old &&
+          Date.parse(old.sell_price_min_date) <
+            Date.parse(q.sell_price_min_date)
+        ) {
+          const i = baselineIndexes.get(keyOf(q)) ?? -1;
           if (i >= 0) baselines[i] = old;
           else baselines.push(old);
         }
@@ -221,10 +257,9 @@ export default function Terminal() {
       writeLocal(baselineKey, baselines);
       writeLocal(snapshotKey, next);
       setQuotes(next);
-      setCached(results.some((r) => r.cached));
+      setCached(failedItems.size > 0 || results.some((r) => r.cached));
       setError(
-        results
-          .map((r) => r.error)
+        [...failures, ...results.map((r) => r.error)]
           .filter(Boolean)
           .join('; '),
       );
@@ -233,14 +268,17 @@ export default function Terminal() {
       if (ticket === generation.current)
         setError(e instanceof Error ? e.message : 'Source unavailable');
     } finally {
-      if (ticket === generation.current) setBusy(false);
+      if (ticket === generation.current) {
+        setBusy(false);
+        activeRequest.current = '';
+      }
     }
   }, [ids, settings.region, settings.quality]);
   useEffect(() => {
     if (!ready) return;
-    const key='amt:snapshot:'+settings.region+':'+settings.quality;
-    setQuotes(readLocal<Quote[]>(key,[]));
-    setPrevious(readLocal<Quote[]>(key+':baseline',[]));
+    const key = 'amt:snapshot:' + settings.region + ':' + settings.quality;
+    setQuotes(readLocal<Quote[]>(key, []));
+    setPrevious(readLocal<Quote[]>(key + ':baseline', []));
     setLast('');
     setCached(true);
     setError('');
@@ -248,14 +286,20 @@ export default function Terminal() {
   useEffect(() => {
     if (!ready) return;
     void refresh();
-    const timer = setInterval(() => {
-      if (!document.hidden) void refresh();
-    }, Math.max(settings.interval,Math.ceil(ids.split(',').length/60)*1500));
+    const timer = setInterval(
+      () => {
+        if (!document.hidden) void refresh();
+      },
+      Math.max(settings.interval, Math.ceil(ids.split(',').length / 60) * 1500),
+    );
     return () => {
       clearInterval(timer);
+      activeRequest.current = '';
+      // Cancellation generation intentionally invalidates any latest in-flight response.
+      // oxlint-disable-next-line react-hooks/exhaustive-deps
       generation.current++;
     };
-  }, [ready, refresh, settings.interval]);
+  }, [ready, refresh, settings.interval, ids]);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 10000);
     return () => clearInterval(timer);
@@ -378,7 +422,7 @@ export default function Terminal() {
               <Activity size={23} />
             </span>
             <span>
-              ALBION<span>MARKET TERMINAL</span>
+              ALBION<span>MARKET PROJECT</span>
             </span>
           </button>
         </SidebarHeader>
@@ -578,7 +622,10 @@ export default function Terminal() {
                   key={selected + settings.region + view}
                   item={item(selected)}
                   quotes={quotes}
-                  settings={settings}
+                  settings={{
+                    ...settings,
+                    quality: materialFamily(selected) ? 1 : settings.quality,
+                  }}
                   now={now}
                   onWatch={addWatch}
                 />
@@ -675,7 +722,12 @@ export default function Terminal() {
           {view === 'Price History' && <ItemAnalysis {...viewProps} />}
           {view === 'Arbitrage Scanner' && <ArbitrageScanner {...viewProps} />}
           {view === 'City Markets' && <CityMarkets {...viewProps} />}
-          {view === 'Gathering' && <Gathering {...viewProps} />}
+          {view === 'Gathering' && (
+            <Gathering {...viewProps} materials={materials} />
+          )}
+          {view === 'Players & Guilds' && (
+            <PlayerExplorer settings={settings} notify={notify} />
+          )}
           {view === 'Transport' && <Transport {...viewProps} />}
           {view === 'Crafting' && <Production {...viewProps} />}
           {view === 'Refining' && <Production {...viewProps} refining />}
@@ -715,7 +767,8 @@ export default function Terminal() {
           )}
           {view === 'Market Overview' && (
             <>
-              <MarketSparklines {...viewProps}/>
+              <MaterialOverview {...viewProps} materials={materials} />
+              <MarketSparklines {...viewProps} />
               <div className="stats-grid">
                 <Stat
                   label="TRACKED ITEMS"
@@ -954,11 +1007,7 @@ export default function Terminal() {
           </span>
         </footer>
       </div>
-      {toast && (
-        <div role="status" className="notification">
-          {toast}
-        </div>
-      )}
+      {toast && <output className="notification">{toast}</output>}
       <CommandDialog
         open={palette}
         onOpenChange={setPalette}

@@ -36,3 +36,10 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/worker/work/
+/dist-pages/
+*.tsbuildinfo
+/audit-report.json
+/lint-results.json
+/scripts/wire-views.mjs
+/scripts/quality-fixes.mjs

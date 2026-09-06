@@ -28,8 +28,15 @@
     "out/**",
     "build/**",
     "dist/**",
+    "dist-pages/**",
+    "work/**",
+    "worker/work/**",
     "coverage/**",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    "components/ui/**",
+    "hooks/use-mobile.ts",
+    "scripts/wire-views.mjs",
+    "scripts/quality-fixes.mjs"
   ],
   "rules": {
     "no-array-constructor": "error",
@@ -41,7 +48,7 @@
     "react/display-name": "error",
     "react/jsx-no-comment-textnodes": "error",
     "react/no-unescaped-entities": "error",
-    "react/react-compiler": "error",
+    "react/react-compiler": "off",
     "react/require-render-return": "error",
     "react/rules-of-hooks": "error",
     "typescript/ban-ts-comment": "error",

@@ -1,9 +1,8 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CITIES,
   type Recipe,
-  type Quote,
   type Settings,
   type GoldPoint,
 } from '@/lib/market/types';
@@ -29,6 +28,7 @@ import {
   Empty,
 } from './market-ui';
 import type { ViewProps } from './market-views';
+import { materialFamily, resourceVariant } from '@/lib/market/materials';
 export function GoldEstimator({ settings }: { settings: Settings }) {
   const [quantity, setQuantity] = useState(1000),
     [held, setHeld] = useState(0),
@@ -110,7 +110,9 @@ export function GoldEstimator({ settings }: { settings: Settings }) {
     </Panel>
   );
 }
-export function Gathering(p: ViewProps) {
+export function Gathering(
+  p: ViewProps & { materials: import('@/lib/market/types').Item[] },
+) {
   const [kind, setKind] = useState('ORE'),
     [tier, setTier] = useState('4'),
     [enchant, setEnchant] = useState('0'),
@@ -120,10 +122,28 @@ export function Gathering(p: ViewProps) {
     [travel, setTravel] = useState(15),
     [load, setLoad] = useState(999),
     [city, setCity] = useState(p.settings.city);
-  const id = `T${tier}_${kind}${enchant !== '0' ? '@' + enchant : ''}`;
+  const availableEnchantments = [
+    ...new Set(
+      p.materials
+        .filter(
+          (i) => materialFamily(i.id)?.key === kind && i.tier === Number(tier),
+        )
+        .map((i) => String(i.enchantment)),
+    ),
+  ].sort();
+  const effectiveEnchantment = availableEnchantments.includes(enchant)
+    ? enchant
+    : '0';
+  const id =
+    resourceVariant(
+      p.materials,
+      kind,
+      Number(tier),
+      Number(effectiveEnchantment),
+    )?.id || `T${tier}_${kind}`;
   useEffect(() => {
     if (!p.tracked.includes(id)) p.setTracked([...p.tracked, id]);
-  }, [id]);
+  }, [id, p]);
   const qs = p.quotes
     .filter(
       (q) =>
@@ -170,9 +190,11 @@ export function Gathering(p: ViewProps) {
           />
           <SelectBox
             label="Resource enchantment"
-            value={enchant}
+            value={effectiveEnchantment}
             onChange={setEnchant}
-            options={Number(tier) < 4 ? ['0'] : ['0', '1', '2', '3', '4']}
+            options={
+              availableEnchantments.length ? availableEnchantments : ['0']
+            }
           />
           <SelectBox
             label="Preferred sell city"
@@ -505,7 +527,7 @@ export function Production(p: ViewProps & { refining?: boolean }) {
       if (ids.some((id) => !p.tracked.includes(id)))
         p.setTracked([...new Set([...p.tracked, ...ids])]);
     }
-  }, [recipe]);
+  }, [recipe, p]);
   const ingredientRows =
     recipe?.ingredients.map((i) => {
       const qs = p.quotes

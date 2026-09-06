@@ -1,5 +1,8 @@
 import { REGIONS, type Region, type Envelope } from './types';
-const cache = new Map<string, { data: unknown; time: number }>();
+const cache = new Map<
+  string,
+  { data: unknown; time: number; sourceCors?: string }
+>();
 const pending = new Map<string, Promise<Envelope<unknown>>>();
 const requests: number[] = [];
 export async function upstream<T>(
@@ -18,7 +21,7 @@ export async function cachedFetch<T>(
 ): Promise<Envelope<T>> {
   const old = cache.get(url);
   const wrap = (
-    entry: { data: unknown; time: number },
+    entry: { data: unknown; time: number; sourceCors?: string },
     cached: boolean,
     error?: string,
   ) => ({
@@ -27,6 +30,7 @@ export async function cachedFetch<T>(
     fetchedAt: new Date(entry.time).toISOString(),
     cached,
     error,
+    sourceCors: entry.sourceCors,
   });
   if (old && Date.now() - old.time < ttl) return wrap(old, true);
   if (pending.has(url)) return pending.get(url) as Promise<Envelope<T>>;
@@ -56,7 +60,12 @@ export async function cachedFetch<T>(
             throw new Error(`Source returned HTTP ${res.status}`);
           }
           const data = await res.json();
-          const entry = { data, time: Date.now() };
+          const entry = {
+            data,
+            time: Date.now(),
+            sourceCors:
+              res.headers.get('access-control-allow-origin') || undefined,
+          };
           cache.set(url, entry);
           if (cache.size > 100) cache.delete(cache.keys().next().value!);
           return wrap(entry, false);

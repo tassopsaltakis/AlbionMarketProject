@@ -129,11 +129,11 @@ export function Num({
 }
 export function FreshnessBadge({
   date,
-  now = Date.now(),
+  now,
   compact = false,
 }: {
   date?: string;
-  now?: number;
+  now: number;
   compact?: boolean;
 }) {
   const f = freshness(date, now);
@@ -168,7 +168,9 @@ export function ItemLabel({
   onClick?: () => void;
 }) {
   return (
-    <button className="item-label" onClick={onClick}>
+    <button className="item-label" onClick={onClick} aria-label={item.name}>
+      {/* The official render service already serves a sized icon; avoid a second image proxy. */}
+      {/* oxlint-disable-next-line next/no-img-element */}
       <img
         src={`https://render.albiononline.com/v1/item/${encodeURIComponent(item.id)}.png?size=64`}
         alt=""

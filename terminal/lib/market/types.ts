@@ -64,9 +64,11 @@ export interface Envelope<T> {
   source: string;
   fetchedAt: string;
   cached: boolean;
+  sourceCors?: string;
   error?: string;
 }
 export interface Settings {
+  playerProxy?: string;
   region: Region;
   interval: number;
   maxAge: number;
@@ -118,6 +120,6 @@ export interface Recipe {
   name: string;
   output: string;
   outputQuantity: number;
-  ingredients: { item: string; quantity: number }[];
+  ingredients: { item: string; quantity: number; returnable?: boolean }[];
   source: string;
 }

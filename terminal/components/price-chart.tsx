@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Area,
-  AreaChart,
   Line,
   ComposedChart,
   XAxis,
@@ -11,7 +10,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Brush,
-  ReferenceLine,
 } from 'recharts';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -31,7 +29,6 @@ import {
   type Settings,
   type HistorySeries,
   type GoldPoint,
-  type Envelope,
 } from '@/lib/market/types';
 import {
   Panel,
@@ -134,8 +131,8 @@ export function PriceChart({
       goldData
         .filter(
           (p) =>
-            timestamp(p.timestamp) >=
-              Date.now() - (RANGES[range] || 30) * 86400000 && p.price > 0,
+            timestamp(p.timestamp) >= now - (RANGES[range] || 30) * 86400000 &&
+            p.price > 0,
         )
         .forEach((p) =>
           byTime.set(timestamp(p.timestamp), {
@@ -171,24 +168,48 @@ export function PriceChart({
         result.Spread = Math.max(...values) - Math.min(...values);
       return result;
     });
-  }, [series, goldData, cities, gold, range]);
-  const data=useMemo(()=>metric!=='Change %'?rawData:rawData.map(row=>{
-    const result={...row};for(const c of [...cities,'Gold','MA7']){
-      const baseline=rawData.find(r=>r[c]>0)?.[c];
-      if(baseline&&result[c]!=null)result[c]=(result[c]/baseline-1)*100;
-    }return result;
-  }),[rawData,metric,cities]);
+  }, [series, goldData, cities, gold, range, now]);
+  const data = useMemo(
+    () =>
+      metric !== 'Change %'
+        ? rawData
+        : rawData.map((row) => {
+            const result = { ...row };
+            for (const c of [...cities, 'Gold', 'MA7']) {
+              const baseline = rawData.find((r) => r[c] > 0)?.[c];
+              if (baseline && result[c] != null)
+                result[c] = (result[c] / baseline - 1) * 100;
+            }
+            return result;
+          }),
+    [rawData, metric, cities],
+  );
   const primary = gold ? 'Gold' : cities[0];
   const values = rawData.map((p) => p[primary]).filter((v) => v > 0);
   const summary = stats(values);
   const first = rawData.find((p) => p[primary] != null)?.[primary];
   const last = rawData.findLast((p) => p[primary] != null)?.[primary];
   const change = first && last != null ? ((last - first) / first) * 100 : null;
-  const lastPoint=rawData.findLast(p=>p[primary]>0);
-  const periodChange=(days:number)=>{if(!lastPoint)return null;const target=lastPoint.time-days*86400000;const base=rawData.findLast(p=>p[primary]>0&&p.time<=target);return base&&target-base.time<=86400000?(lastPoint[primary]/base[primary]-1)*100:null;};
-  const returns=values.slice(1).map((v,i)=>(v/values[i]-1)*100);
-  const meanReturn=returns.length?returns.reduce((a,b)=>a+b,0)/returns.length:0;
-  const volatility=returns.length>1?Math.sqrt(returns.reduce((sum,r)=>sum+(r-meanReturn)**2,0)/returns.length):null;
+  const lastPoint = rawData.findLast((p) => p[primary] > 0);
+  const periodChange = (days: number) => {
+    if (!lastPoint) return null;
+    const target = lastPoint.time - days * 86400000;
+    const base = rawData.findLast((p) => p[primary] > 0 && p.time <= target);
+    return base && target - base.time <= 86400000
+      ? (lastPoint[primary] / base[primary] - 1) * 100
+      : null;
+  };
+  const returns = values.slice(1).map((v, i) => (v / values[i] - 1) * 100);
+  const meanReturn = returns.length
+    ? returns.reduce((a, b) => a + b, 0) / returns.length
+    : 0;
+  const volatility =
+    returns.length > 1
+      ? Math.sqrt(
+          returns.reduce((sum, r) => sum + (r - meanReturn) ** 2, 0) /
+            returns.length,
+        )
+      : null;
   const itemQuotes = quotes.filter((q) => q.item_id === item.id);
   const best = itemQuotes
     .filter((q) => valid(q, 'sell', settings.maxAge || Infinity, now))
@@ -363,7 +384,11 @@ export function PriceChart({
             detail="The spread chart compares observations from the same historical time bucket."
           />
         ) : (
-          <ResponsiveContainer width="100%" height="100%" initialDimension={{width:600,height:280}}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            initialDimension={{ width: 600, height: 280 }}
+          >
             <ComposedChart
               key={chartKey}
               data={data}
@@ -518,7 +543,37 @@ export function PriceChart({
           {error} · Retaining cached historical observations.
         </p>
       )}
-      <div className="history-stats"><div><span>7D change</span><Num value={periodChange(7)} suffix="%"/></div><div><span>30D change</span><Num value={periodChange(30)} suffix="%"/></div><div><span>Bucket return volatility</span><Num value={volatility} suffix="%"/></div><div><span>Range percentile</span><Num value={summary&&last!=null&&summary.max!==summary.min?(last-summary.min)/(summary.max-summary.min)*100:null} suffix="%"/></div><div><span>History ends</span><span>{lastPoint?new Date(lastPoint.time).toLocaleDateString():'—'}</span></div></div>
+      <div className="history-stats">
+        <div>
+          <span>7D change</span>
+          <Num value={periodChange(7)} suffix="%" />
+        </div>
+        <div>
+          <span>30D change</span>
+          <Num value={periodChange(30)} suffix="%" />
+        </div>
+        <div>
+          <span>Bucket return volatility</span>
+          <Num value={volatility} suffix="%" />
+        </div>
+        <div>
+          <span>Range percentile</span>
+          <Num
+            value={
+              summary && last != null && summary.max !== summary.min
+                ? ((last - summary.min) / (summary.max - summary.min)) * 100
+                : null
+            }
+            suffix="%"
+          />
+        </div>
+        <div>
+          <span>History ends</span>
+          <span>
+            {lastPoint ? new Date(lastPoint.time).toLocaleDateString() : '—'}
+          </span>
+        </div>
+      </div>
       <div className="chart-foot">
         <span>
           <ChartNoAxesCombined size={12} />{' '}
