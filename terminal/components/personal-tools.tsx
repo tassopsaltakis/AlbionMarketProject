@@ -392,8 +392,25 @@ export function SettingsView({
   notify: (s: string) => void;
 }) {
   return (
-    <Panel title="Terminal settings" tag="LOCAL PREFERENCES">
+    <Panel title="Settings" tag="LOCAL PREFERENCES">
       <div className="form-grid">
+        <div className="field">
+          Check prices every
+          <SelectBox
+            label="Refresh interval"
+            value={String(settings.interval)}
+            onChange={(value) =>
+              setSettings({ ...settings, interval: Number(value) })
+            }
+            options={[
+              { value: '5000', label: '5 seconds' },
+              { value: '10000', label: '10 seconds' },
+              { value: '30000', label: '30 seconds' },
+              { value: '60000', label: '1 minute' },
+              { value: '300000', label: '5 minutes' },
+            ]}
+          />
+        </div>
         <div className="field">
           Server
           <SelectBox

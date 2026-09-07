@@ -124,6 +124,36 @@ const NAV = [
   ['Players', UserRound],
   ['Guilds', Users],
 ] as const;
+const MAIN_VIEWS = [
+  'Market Overview',
+  'Item Explorer',
+  'Watchlist',
+  'Gathering',
+  'Crafting',
+  'Refining',
+  'Players',
+  'Guilds',
+];
+const VIEW_LABELS: Record<string, string> = {
+  'Market Overview': 'Market prices',
+  'Item Explorer': 'Find an item',
+  'Arbitrage Scanner': 'Trade routes',
+  'City Markets': 'Compare cities',
+  Movers: 'Price changes',
+  Liquidity: 'Trading activity',
+};
+const VIEW_HELP: Record<string, string> = {
+  'Market Overview': 'Browse materials and compare prices across cities.',
+  'Item Explorer':
+    'Find an item, compare city prices and check its price history.',
+  Watchlist: 'Keep the items you buy, gather and sell close at hand.',
+  Gathering:
+    'Plan a gathering trip using your yield, travel time and selling costs.',
+  Crafting: 'Work out material costs and profit before you craft.',
+  Refining: 'Compare refining costs, resource returns and selling prices.',
+  Players: 'Find players and review their reported experience.',
+  Guilds: 'Look up guilds and compare their gathering rosters.',
+};
 export default function Terminal() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [ready, setReady] = useState(false);
@@ -447,18 +477,18 @@ export default function Terminal() {
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>WORKSPACE</SidebarGroupLabel>
+            <SidebarGroupLabel>PLAY & TRADE</SidebarGroupLabel>
             <SidebarMenu>
-              {NAV.map(([name, Icon], i) => (
+              {MAIN_VIEWS.map((name) =>
+                NAV.find(([viewName]) => viewName === name)!,
+              ).map(([name, Icon]) => (
                 <SidebarMenuItem key={name}>
-                  {i === 5 && <div className="nav-label">ECONOMY TOOLS</div>}
-                  {i === 9 && <div className="nav-label">INTELLIGENCE</div>}
                   <SidebarMenuButton
                     isActive={view === name}
                     onClick={() => setView(name)}
                   >
                     <Icon />
-                    <span>{name}</span>
+                    <span>{VIEW_LABELS[name] || name}</span>
                     {name === 'Arbitrage Scanner' && routes.length > 0 && (
                       <b className="nav-count">{routes.length}</b>
                     )}
@@ -466,18 +496,39 @@ export default function Terminal() {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            <details
+              className="more-tools"
+              open={!MAIN_VIEWS.includes(view) || undefined}
+            >
+              <summary>More tools</summary>
+              <SidebarMenu>
+                {NAV.filter(([name]) => !MAIN_VIEWS.includes(name)).map(
+                  ([name, Icon]) => (
+                    <SidebarMenuItem key={name}>
+                      <SidebarMenuButton
+                        isActive={view === name}
+                        onClick={() => setView(name)}
+                      >
+                        <Icon />
+                        <span>{VIEW_LABELS[name] || name}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ),
+                )}
+              </SidebarMenu>
+            </details>
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
           <div className="sidebar-note">
             <ShieldCheck size={16} />
             <span>
-              Public market intelligence
+              Albion Market Project
               <small>Powered by Albion Data Project</small>
             </span>
           </div>
           <button className="command-hint" onClick={() => setPalette(true)}>
-            <CommandIcon size={14} /> Command palette <kbd>⌘ K</kbd>
+            <CommandIcon size={14} /> Quick search <kbd>Ctrl K</kbd>
           </button>
         </SidebarFooter>
       </Sidebar>
@@ -485,7 +536,7 @@ export default function Terminal() {
         <header className="topbar">
           <SidebarTrigger />
           <span className="workspace-label">
-            TERMINAL <ChevronRight size={12} />
+            ALBION <ChevronRight size={12} />
           </span>
           <SelectBox
             label="Server"
@@ -510,7 +561,7 @@ export default function Terminal() {
             }}
           >
             <Search size={15} />
-            <span>Search items, cities, commands...</span>
+            <span>Find an item or tool...</span>
             <kbd>/</kbd>
           </button>
           <div className={`api-status ${error ? 'amber' : 'positive'}`}>
@@ -518,25 +569,11 @@ export default function Terminal() {
             {busy
               ? 'Refreshing'
               : error
-                ? 'API degraded'
+                ? 'Some prices unavailable'
                 : last
-                  ? 'API connected'
+                  ? 'Prices loaded'
                   : 'Connecting'}
           </div>
-          <SelectBox
-            label="Refresh interval"
-            value={String(settings.interval)}
-            onChange={(v) =>
-              setSettings((s) => ({ ...s, interval: Number(v) }))
-            }
-            options={[
-              { value: '5000', label: '5s' },
-              { value: '10000', label: '10s' },
-              { value: '30000', label: '30s' },
-              { value: '60000', label: '1m' },
-              { value: '300000', label: '5m' },
-            ]}
-          />
           <button
             className="icon-button"
             title="Refresh (R)"
@@ -553,39 +590,15 @@ export default function Terminal() {
             <SettingsIcon size={16} />
           </button>
         </header>
-        <div className="ticker">
-          {DEFAULT_ITEMS.slice(0, 7).map((id) => {
-            const best = eligible
-              .filter((q) => q.item_id === id)
-              .sort((a, b) => a.sell_price_min - b.sell_price_min)[0];
-            return (
-              <button key={id} onClick={() => openItem(id)}>
-                <span>{item(id).name}</span>
-                <strong>
-                  <Num value={best?.sell_price_min} />
-                </strong>
-                <small>{best?.city || 'No quote'}</small>
-                <FreshnessBadge
-                  date={best?.sell_price_min_date}
-                  now={now}
-                  compact
-                />
-              </button>
-            );
-          })}
-        </div>
         <main className="workspace">
           <div className="page-heading">
             <div>
               <div className="eyebrow">
-                MARKET INTELLIGENCE{' '}
+                ALBION MARKET PROJECT{' '}
                 <span>/ {settings.region.toUpperCase()}</span>
               </div>
-              <h1>
-                {view}
-                <span className="live-label">PUBLIC DATA</span>
-              </h1>
-              <p>Every opportunity starts with a better view of the market.</p>
+              <h1>{VIEW_LABELS[view] || view}</h1>
+              {VIEW_HELP[view] && <p>{VIEW_HELP[view]}</p>}
             </div>
             <div className="heading-actions">
               <span className="last-update">
@@ -612,9 +625,7 @@ export default function Terminal() {
               <button onClick={() => void refresh()}>Retry</button>
             </div>
           )}
-          {['Market Overview', 'Item Explorer', 'Price History'].includes(
-            view,
-          ) && (
+          {['Item Explorer', 'Price History'].includes(view) && (
             <>
               <div className="instrument-tabs">
                 {tracked.slice(0, 7).map((id) => (
@@ -678,7 +689,7 @@ export default function Terminal() {
                       return (
                         <>
                           <div>
-                            <span>Best ask</span>
+                            <span>Lowest sell price</span>
                             <Num value={ask?.sell_price_min} />
                           </div>
                           <div>
@@ -690,14 +701,14 @@ export default function Terminal() {
                             )}
                           </div>
                           <div>
-                            <span>Ask observed</span>
+                            <span>Sell price observed</span>
                             <FreshnessBadge
                               date={ask?.sell_price_min_date}
                               now={now}
                             />
                           </div>
                           <div>
-                            <span>Best bid</span>
+                            <span>Highest buy order</span>
                             <Num value={bid?.buy_price_max} />
                           </div>
                           <div>
@@ -709,7 +720,7 @@ export default function Terminal() {
                             )}
                           </div>
                           <div>
-                            <span>Bid observed</span>
+                            <span>Buy order observed</span>
                             <FreshnessBadge
                               date={bid?.buy_price_max_date}
                               now={now}

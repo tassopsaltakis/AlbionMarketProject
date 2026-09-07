@@ -1564,6 +1564,15 @@ kbd {
     padding: 6px 8px;
   }
 }
+.more-tools { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.more-tools > summary { cursor: pointer; padding: 10px 12px; font-size: 14px; color: var(--muted-foreground); }
+.more-tools > summary:hover { color: var(--foreground); }
+.terminal-sidebar [data-slot='sidebar-menu-button'] { min-height: 40px; font-size: 14px; }
+.workspace .page-heading { padding-bottom: 18px; }
+.workspace .page-heading p { font-size: 15px; line-height: 1.6; }
+.workspace .settings-help { font-size: 14px; line-height: 1.65; }
+.workspace .field { font-size: 14px; }
+.workspace .field input { min-height: 38px; font-size: 14px; }
 .data-sources {
   display: grid;
   gap: 10px;
