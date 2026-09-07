@@ -88,6 +88,8 @@ import { materialFamily, materialUniverse } from '@/lib/market/materials';
 import { MaterialOverview } from './material-overview';
 import { PlayerExplorer } from './player-explorer';
 import { QuoteCoverage } from './quote-coverage';
+import { DataSources } from './data-sources';
+import { reconcileQuotes } from '@/lib/market/reconcile';
 import { age, arbitrage, valid } from '@/lib/market/analytics';
 import {
   SelectBox,
@@ -117,6 +119,7 @@ const NAV = [
   ['Heatmap', PanelTop],
   ['Saved Screens', Bookmark],
   ['Settings', SettingsIcon],
+  ['Data Sources', Activity],
   ['Players', UserRound],
   ['Guilds', Users],
 ] as const;
@@ -235,11 +238,12 @@ export default function Terminal() {
         }
       }
       if (ticket !== generation.current) return;
-      const next = results.flatMap((r) => r.data);
+      const incoming = results.flatMap((r) => r.data);
       const snapshotKey =
         'amt:snapshot:' + settings.region + ':' + settings.quality;
       const prev = readLocal<Quote[]>(snapshotKey, []);
-      next.push(...prev.filter((quote) => failedItems.has(quote.item_id)));
+      incoming.push(...prev.filter((quote) => failedItems.has(quote.item_id)));
+      const next = reconcileQuotes(incoming, prev);
       const baselineKey = snapshotKey + ':baseline';
       const baselines = readLocal<Quote[]>(baselineKey, []);
       const keyOf = (q: Quote) => q.item_id + ':' + q.city + ':' + q.quality;
@@ -739,6 +743,13 @@ export default function Terminal() {
           )}
           {view === 'Item Explorer' && <ItemAnalysis {...viewProps} />}
           {view === 'Price History' && <ItemAnalysis {...viewProps} />}
+          {view === 'Data Sources' && (
+            <DataSources
+              key={settings.region + selected + settings.quality}
+              settings={settings}
+              selected={selected}
+            />
+          )}
           {view === 'Arbitrage Scanner' && <ArbitrageScanner {...viewProps} />}
           {view === 'City Markets' && <CityMarkets {...viewProps} />}
           {view === 'Gathering' && (
