@@ -1564,6 +1564,11 @@ kbd {
     padding: 6px 8px;
   }
 }
+.flip-scan-controls { margin: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.flip-scan-controls legend { padding: 0 8px; font-size: 14px; }
+.flip-scan-controls .toolbar { flex-wrap: wrap; gap: 12px; }
+.flip-scan-controls:disabled { opacity: .65; }
+output.settings-help { display: block; }
 .more-tools { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
 .more-tools > summary { cursor: pointer; padding: 10px 12px; font-size: 14px; color: var(--muted-foreground); }
 .more-tools > summary:hover { color: var(--foreground); }

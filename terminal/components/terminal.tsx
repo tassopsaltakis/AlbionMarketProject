@@ -1,5 +1,13 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  lazy,
+  Suspense,
+} from 'react';
 import {
   Activity,
   LayoutDashboard,
@@ -49,6 +57,11 @@ import {
   CommandEmpty,
 } from '@/components/ui/command';
 import { PriceChart } from './price-chart';
+const MarketFlipping = lazy(() =>
+  import('./market-flipping').then((module) => ({
+    default: module.MarketFlipping,
+  })),
+);
 import { MarketSparklines } from './market-sparklines';
 import {
   ItemAnalysis,
@@ -109,6 +122,7 @@ const NAV = [
   ['Item Explorer', Search],
   ['City Markets', Globe],
   ['Arbitrage Scanner', ArrowLeftRight],
+  ['Market Flipping', Coins],
   ['Gathering', Pickaxe],
   ['Crafting', Hammer],
   ['Refining', Flame],
@@ -125,6 +139,7 @@ const NAV = [
   ['Guilds', Users],
 ] as const;
 const MAIN_VIEWS = [
+  'Market Flipping',
   'Market Overview',
   'Item Explorer',
   'Watchlist',
@@ -773,6 +788,21 @@ export default function Terminal() {
             />
           )}
           {view === 'Arbitrage Scanner' && <ArbitrageScanner {...viewProps} />}
+          {view === 'Market Flipping' && (
+            <Suspense
+              fallback={
+                <p className="settings-help">
+                  Loading market flipping calculator…
+                </p>
+              }
+            >
+              <MarketFlipping
+                key={settings.region}
+                catalog={catalog}
+                settings={settings}
+              />
+            </Suspense>
+          )}
           {view === 'City Markets' && <CityMarkets {...viewProps} />}
           {view === 'Gathering' && (
             <Gathering {...viewProps} materials={materials} />
