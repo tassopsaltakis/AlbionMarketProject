@@ -90,6 +90,7 @@ import { PlayerExplorer } from './player-explorer';
 import { QuoteCoverage } from './quote-coverage';
 import { DataSources } from './data-sources';
 import { reconcileQuotes } from '@/lib/market/reconcile';
+import { refreshPlan } from '@/lib/market/refresh-plan';
 import { age, arbitrage, valid } from '@/lib/market/analytics';
 import {
   SelectBox,
@@ -199,27 +200,19 @@ export default function Terminal() {
     }
   }, [ready, settings, selected, tracked, view]);
   const refresh = useCallback(async () => {
-    const requestKey = settings.region + ':' + settings.quality + ':' + ids;
+    const requestKey =
+      settings.region + ':' + settings.quality + ':' + selected + ':' + ids;
     if (activeRequest.current === requestKey) return;
     activeRequest.current = requestKey;
     const ticket = ++generation.current;
     setBusy(true);
     try {
-      const groups = new Map<number, string[]>();
-      for (const id of ids.split(',')) {
-        const quality = materialFamily(id) ? 1 : settings.quality;
-        groups.set(quality, [...(groups.get(quality) || []), id]);
-      }
-      const chunks = [...groups.entries()].flatMap(([quality, list]) =>
-        Array.from({ length: Math.ceil(list.length / 60) }, (_, i) => ({
-          quality,
-          items: list.slice(i * 60, (i + 1) * 60),
-        })),
-      );
+      const chunks = refreshPlan(ids.split(','), selected, settings.quality);
       const results = [];
       const failedItems = new Set<string>();
       const failures: string[] = [];
       for (const chunk of chunks) {
+        if (ticket !== generation.current) return;
         try {
           results.push(
             await marketRequest<Quote[]>(
@@ -230,6 +223,17 @@ export default function Terminal() {
               }).toString(),
             ),
           );
+          if (ticket !== generation.current) return;
+          const result = results[results.length - 1];
+          // Publish completed batches without waiting for unrelated markets.
+          setQuotes((current) => {
+            if (ticket !== generation.current) return current;
+            const untouched = current.filter(
+              (q) =>
+                q.quality !== chunk.quality || !chunk.items.includes(q.item_id),
+            );
+            return [...untouched, ...reconcileQuotes(result.data, current)];
+          });
         } catch (error) {
           chunk.items.forEach((id) => failedItems.add(id));
           failures.push(
@@ -281,7 +285,7 @@ export default function Terminal() {
         activeRequest.current = '';
       }
     }
-  }, [ids, settings.region, settings.quality]);
+  }, [ids, selected, settings.region, settings.quality]);
   useEffect(() => {
     if (!ready) return;
     const key = 'amt:snapshot:' + settings.region + ':' + settings.quality;
@@ -300,8 +304,15 @@ export default function Terminal() {
       },
       Math.max(settings.interval, Math.ceil(ids.split(',').length / 60) * 1500),
     );
+    const resume = () => {
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
     return () => {
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('online', resume);
       activeRequest.current = '';
       // Cancellation generation intentionally invalidates any latest in-flight response.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
