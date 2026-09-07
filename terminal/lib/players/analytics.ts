@@ -13,6 +13,8 @@ export function statValue(value: unknown, path: string[]): number | null {
 }
 export function playerStats(player: PublicIdentity) {
   const s = player.LifetimeStatistics;
+  const killFame = statValue(player, ['KillFame']);
+  const deathFame = statValue(player, ['DeathFame']);
   const resources = RESOURCES.map((resource) => ({
     resource,
     fame: statValue(s, ['Gathering', resource, 'Total']),
@@ -24,6 +26,27 @@ export function playerStats(player: PublicIdentity) {
     .filter((r) => r.fame != null && r.fame > 0)
     .sort((a, b) => b.fame! - a.fame!)[0]?.resource;
   return {
+    killFame,
+    deathFame,
+    fameRatio:
+      killFame != null && deathFame != null && deathFame > 0
+        ? killFame / deathFame
+        : null,
+    pveActivities: [
+      'Royal',
+      'Outlands',
+      'Avalon',
+      'Hellgate',
+      'CorruptedDungeon',
+      'Mists',
+    ].map((activity) => ({
+      activity,
+      fame: statValue(s, ['PvE', activity]),
+    })),
+    craftingRegions: ['Royal', 'Outlands', 'Avalon'].map((region) => ({
+      region,
+      fame: statValue(s, ['Crafting', region]),
+    })),
     gathering: statValue(s, ['Gathering', 'All', 'Total']),
     crafting: statValue(s, ['Crafting', 'Total']),
     farming: statValue(s, ['FarmingFame']),

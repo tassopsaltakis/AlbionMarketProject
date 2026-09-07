@@ -30,6 +30,38 @@ const player = {
     Timestamp: '2026-09-05T00:00:00Z',
   },
 };
+
+test('combat ratios and activity breakdowns preserve zero, missing and invalid statistics', () => {
+  const stats = playerStats({
+    ...player,
+    KillFame: 200,
+    DeathFame: 50,
+    LifetimeStatistics: {
+      ...player.LifetimeStatistics,
+      PvE: { Total: 1000, Royal: 0, Mists: 120 },
+      Crafting: { Total: 500, Outlands: 200 },
+    },
+  });
+  assert.equal(stats.fameRatio, 4);
+  assert.equal(stats.pveActivities.find((r) => r.activity === 'Royal').fame, 0);
+  assert.equal(
+    stats.pveActivities.find((r) => r.activity === 'Avalon').fame,
+    null,
+  );
+  assert.equal(
+    stats.craftingRegions.find((r) => r.region === 'Outlands').fame,
+    200,
+  );
+  assert.equal(
+    playerStats({ ...player, KillFame: 200, DeathFame: 0 }).fameRatio,
+    null,
+  );
+  assert.equal(
+    playerStats({ ...player, KillFame: -5, DeathFame: 10 }).fameRatio,
+    null,
+  );
+  assert.equal(playerStats(player).killFame, null);
+});
 test('player stats preserve missing values without inventing zeros', () => {
   const s = playerStats(player);
   assert.equal(s.gathering, 100);

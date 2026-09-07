@@ -1,4 +1,5 @@
 'use client';
+import { PlayerBackground } from './player-background';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Search,
@@ -601,6 +602,11 @@ export function PlayerExplorer({
                   </div>
                 )}
               </Panel>
+              <PlayerBackground
+                player={detail.data}
+                region={settings.region}
+                source={detail.source}
+              />
               <div className="two-column">
                 <Panel title="Gathering specialities" tag="LIFETIME FAME">
                   <div className="resource-chart">
